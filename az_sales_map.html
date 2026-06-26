@@ -642,7 +642,7 @@ function renderRoute() {
 function calcRoute() {
   const valid = [
     ...selected.filter(s => parseFloat(s['위도']) && parseFloat(s['경도'])),
-    ...searchSelected.filter(s => s.lat && s.lng).map(s => ({...s, '위도':s.lat, '경도':s.lng}))
+    ...searchSelected.filter(s => s['위도'] && s['경도'])
   ];
   if (!valid.length) { alert('선택한 거래처에 좌표 데이터가 없습니다.\nApps Script에서 [📍 좌표 일괄 변환]을 실행해주세요.'); return; }
 
