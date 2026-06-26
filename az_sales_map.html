@@ -289,7 +289,7 @@ if (sessionStorage.getItem('az_auth') === '1') {
 // ── 설정 ──
 const SS_ID = '1mIXExxFRuZmcy7VKEe_w63Yu1QOqT5r8qondm4k91-c';
 const GID = { active:'0', new:'2043143991', dormant:'1615833992' };
-const COMPANY = { lat:35.18654, lng:126.79147, name:'(주)에이젯시스템' };
+const COMPANY = { lat:35.2162723, lng:126.8245735, name:'(주)에이젯시스템' };
 const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbww09dEKrw_y5NzFix3srMH0Wd6ygclA427ZdQiqWbXePQ-q0OwIkiX3SiSbjt8YBL8XA/exec'; // Apps Script 배포 후 URL 입력
 const COLORS = { active:'#3b82f6', new:'#27ae60', dormant:'#888888', search:'#e84444' };
 
@@ -316,14 +316,44 @@ window.onload = async () => {
   });
   ps = new kakao.maps.services.Places();
 
-  // 회사 마커
-  new kakao.maps.Marker({
+  // 회사 마커 (크고 눈에 띄게)
+  const companyContent = `
+    <div style="
+      position:relative;
+      display:flex;flex-direction:column;align-items:center;
+    ">
+      <div style="
+        background:#5c6ef8;
+        border:3px solid white;
+        border-radius:50%;
+        width:32px;height:32px;
+        display:flex;align-items:center;justify-content:center;
+        font-size:16px;
+        box-shadow:0 0 0 3px #5c6ef8, 0 4px 12px rgba(92,110,248,.6);
+      ">🏢</div>
+      <div style="
+        background:#5c6ef8;
+        color:white;
+        font-size:10px;
+        font-weight:700;
+        padding:2px 6px;
+        border-radius:4px;
+        margin-top:3px;
+        white-space:nowrap;
+        box-shadow:0 2px 6px rgba(0,0,0,.3);
+      ">AZ 본사</div>
+      <div style="
+        width:2px;height:8px;
+        background:#5c6ef8;
+        margin-top:1px;
+      "></div>
+    </div>`;
+
+  new kakao.maps.CustomOverlay({
     position: new kakao.maps.LatLng(COMPANY.lat, COMPANY.lng),
-    map,
-    image: new kakao.maps.MarkerImage(
-      'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png',
-      new kakao.maps.Size(24,35)
-    )
+    content: companyContent,
+    yAnchor: 1,
+    map
   });
 
   // 지도 이동 시 카테고리 재검색
