@@ -111,8 +111,8 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
 .region-group { position:relative; }
 .region-btn { padding:5px 14px; background:var(--surface); border:1px solid var(--border); border-radius:20px; color:var(--text); font-size:12px; cursor:pointer; transition:all .15s; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,.3); }
 .region-btn:hover, .region-btn.on { background:var(--accent); border-color:var(--accent); font-weight:600; }
-.region-dropdown { position:absolute; top:calc(100% + 6px); left:0; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:6px; min-width:160px; max-height:300px; overflow-y:auto; box-shadow:0 4px 16px rgba(0,0,0,.4); display:none; z-index:10; display:grid; grid-template-columns:1fr 1fr; gap:3px; }
-.region-group.open .region-dropdown { display:grid !important; }
+.region-dropdown { position:absolute; top:calc(100% + 6px); left:0; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:6px; min-width:160px; max-height:300px; overflow-y:auto; box-shadow:0 4px 16px rgba(0,0,0,.4); visibility:hidden; opacity:0; z-index:10; grid-template-columns:1fr 1fr; gap:3px; display:grid; }
+.region-group.open .region-dropdown { visibility:visible; opacity:1; }
 .sub-btn { padding:4px 8px; background:none; border:1px solid var(--border); border-radius:5px; color:var(--muted); font-size:11px; cursor:pointer; transition:all .15s; text-align:center; white-space:nowrap; }
 .sub-btn:hover, .sub-btn.on { background:var(--accent); border-color:var(--accent); color:white; }
 
@@ -373,40 +373,52 @@ function setLoadTxt(t) { document.getElementById('loadtxt').textContent = t; }
 
 // ── CSV 파싱 ──
 function parseCSV(txt) {
-  // 줄바꿈 정규화
-  const normalized = txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim();
-  const lines = normalized.split('\n');
-  if (lines.length < 2) return [];
-  const hdrs = splitLine(lines[0]).map(h => h.replace(/"/g,'').trim());
-  return lines.slice(1)
-    .filter(l => l.trim())
-    .map(l => {
-      const vals = splitLine(l);
+  const rows = parseCSVRaw(txt);
+  if (rows.length < 2) return [];
+  const hdrs = rows[0].map(h => h.trim());
+  return rows.slice(1)
+    .filter(r => r.some(v => v.trim()))
+    .map(vals => {
       const obj = {};
-      hdrs.forEach((h,i) => {
-        obj[h] = (vals[i]||'').replace(/^"|"$/g,'').trim();
-      });
+      hdrs.forEach((h,i) => { obj[h] = (vals[i]||'').trim(); });
       return obj;
     }).filter(r => r['거래처명']);
 }
 
-function splitLine(line) {
-  const res = []; let cur='', inQ=false;
-  for (let i=0; i<line.length; i++) {
-    const ch = line[i];
-    if (ch==='"') {
-      // 연속 따옴표 처리
-      if (inQ && line[i+1]==='"') { cur+='"'; i++; }
-      else inQ=!inQ;
-    } else if (ch===',' && !inQ) {
-      res.push(cur.trim());
-      cur='';
+// RFC 4180 완전 준수 CSV 파서
+function parseCSVRaw(txt) {
+  const rows = [];
+  let row = [], cur = '', inQ = false;
+  const s = txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (s[i+1] === '"') { cur += '"'; i++; }
+        else inQ = false;
+      } else {
+        cur += ch;
+      }
     } else {
-      cur+=ch;
+      if (ch === '"') {
+        inQ = true;
+      } else if (ch === ',') {
+        row.push(cur); cur = '';
+      } else if (ch === '\n') {
+        row.push(cur); cur = '';
+        rows.push(row); row = [];
+      } else {
+        cur += ch;
+      }
     }
   }
-  res.push(cur.trim());
-  return res;
+  if (cur || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+
+function splitLine(line) {
+  return parseCSVRaw(line)[0] || [];
 }
 
 // ── 마커 표시 (좌표 컬럼 기반) ──
