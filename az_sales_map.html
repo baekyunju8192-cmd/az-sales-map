@@ -160,9 +160,7 @@ function checkPw() {
 }
 // 세션 유지 (새로고침 시 재입력 불필요)
 if (sessionStorage.getItem('az_auth') === '1') {
-  document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('auth-overlay').style.display = 'none';
-  });
+  document.getElementById('auth-overlay').style.display = 'none';
 }
 </script>
 
