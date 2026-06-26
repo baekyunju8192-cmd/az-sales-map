@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AZ 영업지도</title>
+<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=ec7bc6e64af739bb295e74161a8a069d&libraries=services"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#222536;
+  --border:#2e3247; --text:#e8eaf0; --muted:#7b82a0;
+  --red:#e84444; --green:#27ae60; --orange:#e67e22;
+  --blue:#3b82f6; --accent:#5c6ef8;
+}
+body { font-family:-apple-system,sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+
+/* 헤더 */
+header { height:50px; background:var(--surface); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 14px; gap:10px; flex-shrink:0; }
+.logo { font-size:15px; font-weight:700; }
+.logo span { color:var(--accent); }
+.hdiv { width:1px; height:18px; background:var(--border); }
+.legend { display:flex; gap:8px; }
+.leg { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--muted); cursor:pointer; padding:2px 7px; border-radius:4px; transition:background .15s; }
+.leg:hover { background:var(--surface2); }
+.leg.off { opacity:.3; }
+.dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.hright { margin-left:auto; font-size:11px; color:var(--muted); }
+
+/* 레이아웃 */
+.main { display:flex; flex:1; overflow:hidden; }
+
+/* 사이드바 */
+.sidebar { width:290px; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; }
+.sb-sec { padding:10px 12px; border-bottom:1px solid var(--border); }
+.sec-label { font-size:10px; font-weight:600; letter-spacing:.8px; text-transform:uppercase; color:var(--muted); margin-bottom:7px; }
+
+/* 검색 */
+.srch { position:relative; }
+.srch input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:6px 10px 6px 28px; color:var(--text); font-size:12px; outline:none; }
+.srch input:focus { border-color:var(--accent); }
+.srch input::placeholder { color:var(--muted); }
+.srch-ic { position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:12px; color:var(--muted); }
+
+/* 탭 */
+.tabs { display:flex; gap:4px; margin-bottom:7px; }
+.tab { flex:1; padding:5px; background:none; border:1px solid var(--border); border-radius:5px; color:var(--muted); font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:3px; transition:all .15s; }
+.tab.on { background:var(--surface2); border-color:var(--accent); color:var(--text); }
+.tdot { width:7px; height:7px; border-radius:50%; }
+
+/* 목록 */
+.clist { flex:1; overflow-y:auto; }
+.clist::-webkit-scrollbar { width:3px; }
+.clist::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+.ci { display:flex; align-items:flex-start; gap:7px; padding:6px 12px; cursor:pointer; border-left:2px solid transparent; transition:background .1s; }
+.ci:hover { background:var(--surface2); }
+.ci.sel { background:var(--surface2); border-left-color:var(--accent); }
+.chk { width:14px; height:14px; border:1.5px solid var(--border); border-radius:3px; flex-shrink:0; margin-top:2px; display:flex; align-items:center; justify-content:center; transition:all .15s; }
+.ci.sel .chk { background:var(--accent); border-color:var(--accent); }
+.chk::after { content:''; display:none; width:7px; height:4px; border-left:1.5px solid white; border-bottom:1.5px solid white; transform:rotate(-45deg) translateY(-1px); }
+.ci.sel .chk::after { display:block; }
+.ci-info { flex:1; min-width:0; }
+.ci-name { font-size:12px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:1px; }
+.ci-addr { font-size:10px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ci-mgr { font-size:10px; color:var(--muted); }
+.badge { font-size:9px; padding:1px 5px; border-radius:3px; flex-shrink:0; font-weight:600; }
+.b-act  { background:rgba(232,68,68,.15);  color:var(--red); }
+.b-new  { background:rgba(39,174,96,.15);  color:var(--green); }
+.b-dorm { background:rgba(230,126,34,.15); color:var(--orange); }
+.empty { padding:16px 12px; text-align:center; color:var(--muted); font-size:12px; }
+
+/* 경로 */
+.route-sec { padding:10px 12px; border-top:1px solid var(--border); flex-shrink:0; }
+.sel-cnt { font-size:11px; color:var(--muted); margin-bottom:7px; }
+.sel-cnt span { color:var(--accent); font-weight:600; }
+.btn-route { width:100%; padding:8px; background:var(--accent); border:none; border-radius:6px; color:white; font-size:13px; font-weight:600; cursor:pointer; transition:opacity .15s; }
+.btn-route:hover { opacity:.85; }
+.btn-route:disabled { opacity:.35; cursor:not-allowed; }
+.btn-clear { width:100%; padding:5px; background:none; border:1px solid var(--border); border-radius:6px; color:var(--muted); font-size:11px; cursor:pointer; margin-top:5px; }
+.btn-clear:hover { border-color:var(--red); color:var(--red); }
+.rlist { margin-top:7px; max-height:140px; overflow-y:auto; }
+.rlist::-webkit-scrollbar { width:3px; }
+.rstep { display:flex; align-items:center; gap:7px; padding:4px 0; font-size:11px; }
+.snum { width:17px; height:17px; background:var(--accent); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; flex-shrink:0; }
+.snum.company { background:var(--muted); }
+.sname { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* 지도 */
+.map-wrap { flex:1; position:relative; }
+#map { width:100%; height:100%; }
+
+/* 카테고리 바 */
+.cat-bar { position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:5; display:flex; gap:5px; background:var(--surface); padding:6px 8px; border-radius:10px; border:1px solid var(--border); box-shadow:0 4px 20px rgba(0,0,0,.4); flex-wrap:wrap; justify-content:center; max-width:calc(100% - 32px); }
+.cat { padding:4px 11px; background:var(--surface2); border:1px solid var(--border); border-radius:20px; color:var(--muted); font-size:12px; cursor:pointer; transition:all .15s; white-space:nowrap; }
+.cat:hover { border-color:var(--blue); color:var(--text); }
+.cat.on { background:var(--blue); border-color:var(--blue); color:white; font-weight:600; }
+.cat.loading { opacity:.6; cursor:wait; }
+
+/* 인포윈도우 */
+.iw { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; min-width:170px; max-width:230px; box-shadow:0 4px 16px rgba(0,0,0,.5); }
+.iw-name { font-size:13px; font-weight:600; margin-bottom:3px; color:#e8eaf0; }
+.iw-addr { font-size:10px; color:#7b82a0; margin-bottom:5px; line-height:1.4; }
+.iw-row { display:flex; gap:5px; align-items:center; flex-wrap:wrap; }
+.iw-badge { font-size:9px; font-weight:600; padding:1px 5px; border-radius:3px; }
+.iw-mgr { font-size:10px; color:#7b82a0; }
+.iw-top5 { margin-top:6px; font-size:10px; color:#7b82a0; border-top:1px solid #2e3247; padding-top:5px; line-height:1.6; }
+.iw-top5 b { color:#e8eaf0; display:block; margin-bottom:2px; }
+
+/* 로딩 */
+.loading { position:absolute; inset:0; background:rgba(15,17,23,.85); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:20; gap:10px; }
+.loading.hide { display:none; }
+.spin { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.load-txt { font-size:12px; color:var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">AZ <span>영업지도</span></div>
+  <div class="hdiv"></div>
+  <div class="legend">
+    <div class="leg" id="leg-active" onclick="toggleLayer('active')">
+      <div class="dot" style="background:var(--red)"></div>기존거래처
+    </div>
+    <div class="leg" id="leg-new" onclick="toggleLayer('new')">
+      <div class="dot" style="background:var(--green)"></div>신규거래처
+    </div>
+    <div class="leg" id="leg-dormant" onclick="toggleLayer('dormant')">
+      <div class="dot" style="background:var(--orange)"></div>휴면거래처
+    </div>
+    <div class="leg" id="leg-search" onclick="toggleLayer('search')">
+      <div class="dot" style="background:var(--blue)"></div>카테고리검색
+    </div>
+  </div>
+  <div class="hright" id="hstatus">데이터 로딩 중...</div>
+</header>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sb-sec">
+      <div class="sec-label">거래처 검색</div>
+      <div class="srch">
+        <span class="srch-ic">🔍</span>
+        <input id="srch" type="text" placeholder="거래처명 검색...">
+      </div>
+    </div>
+    <div class="sb-sec" style="flex:1;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0">
+      <div class="tabs">
+        <button class="tab on" id="tab-active" onclick="switchTab('active')">
+          <div class="tdot" style="background:var(--red)"></div>기존
+        </button>
+        <button class="tab" id="tab-new" onclick="switchTab('new')">
+          <div class="tdot" style="background:var(--green)"></div>신규
+        </button>
+        <button class="tab" id="tab-dormant" onclick="switchTab('dormant')">
+          <div class="tdot" style="background:var(--orange)"></div>휴면
+        </button>
+      </div>
+      <div class="clist" id="clist"></div>
+    </div>
+    <div class="route-sec">
+      <div class="sel-cnt">선택: <span id="selcnt">0</span>개</div>
+      <button class="btn-route" id="btnRoute" onclick="calcRoute()" disabled>🗺️ 최적 경로 생성</button>
+      <button class="btn-clear" onclick="clearSelection()">✕ 선택 초기화</button>
+      <div class="rlist" id="rlist"></div>
+    </div>
+  </div>
+
+  <div class="map-wrap">
+    <div class="cat-bar">
+      <button class="cat" onclick="searchCat(this,'육가공',['육가공장','육가공품','양념육','가공육'])">🏭 육가공</button>
+      <button class="cat" onclick="searchCat(this,'식당',['샤브샤브','무한리필','기사식당','뷔페','함바'])">🍽️ 식당</button>
+      <button class="cat" onclick="searchCat(this,'수산물',['수산물','생선구이'])">🐟 수산물</button>
+      <button class="cat" onclick="searchCat(this,'식자재',['식자재마트'])">🛒 식자재</button>
+      <button class="cat" onclick="searchCat(this,'곱창',['곱창','막창'])">🔥 곱창</button>
+      <button class="cat" onclick="searchCat(this,'할랄',['양꼬치','할랄','케밥','타코'])">🌙 할랄</button>
+      <button class="cat" style="color:var(--red);border-color:var(--border)" onclick="clearCat()">✕</button>
+    </div>
+    <div id="map"></div>
+    <div class="loading" id="loading">
+      <div class="spin"></div>
+      <div class="load-txt" id="loadtxt">데이터 불러오는 중...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 설정 ──
+const SS_ID = '1mIXExxFRuZmcy7VKEe_w63Yu1QOqT5r8qondm4k91-c';
+const GID = { active:'0', new:'2043143991', dormant:'1615833992' };
+const COMPANY = { lat:35.18654, lng:126.79147, name:'(주)에이젯시스템' };
+const COLORS = { active:'#e84444', new:'#27ae60', dormant:'#e67e22', search:'#3b82f6' };
+
+// ── 상태 ──
+let map, ps;
+let data    = { active:[], new:[], dormant:[] };
+let markers = { active:[], new:[], dormant:[], search:[] };
+let visible = { active:true, new:true, dormant:true, search:true };
+let selected = [];
+let curTab = 'active';
+let curIW = null;
+let curCatBtn = null;
+let curCat = null;
+let polylines = [];
+let top5 = {};
+
+// ── 초기화 ──
+window.onload = async () => {
+  map = new kakao.maps.Map(document.getElementById('map'), {
+    center: new kakao.maps.LatLng(COMPANY.lat, COMPANY.lng),
+    level: 8
+  });
+  ps = new kakao.maps.services.Places();
+
+  // 회사 마커
+  new kakao.maps.Marker({
+    position: new kakao.maps.LatLng(COMPANY.lat, COMPANY.lng),
+    map,
+    image: new kakao.maps.MarkerImage(
+      'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png',
+      new kakao.maps.Size(24,35)
+    )
+  });
+
+  // 지도 이동 시 카테고리 재검색
+  kakao.maps.event.addListener(map, 'idle', () => {
+    if (curCat) doSearch(curCat);
+  });
+
+  await loadAll();
+  document.getElementById('loading').classList.add('hide');
+};
+
+// ── 데이터 로드 ──
+async function loadAll() {
+  const types = ['active','new','dormant'];
+  for (const t of types) {
+    setLoadTxt(`${t === 'active' ? '기존' : t === 'new' ? '신규' : '휴면'}거래처 로딩 중...`);
+    try {
+      const url = `https://docs.google.com/spreadsheets/d/${SS_ID}/export?format=csv&gid=${GID[t]}`;
+      const txt = await fetch(url).then(r => r.text());
+      data[t] = parseCSV(txt);
+    } catch(e) { console.error(t, e); }
+  }
+
+  // 거래처별주요품목 로드
+  try {
+    setLoadTxt('주요품목 로딩 중...');
+    const url = `https://docs.google.com/spreadsheets/d/${SS_ID}/export?format=csv&gid=299724501`;
+    const txt = await fetch(url).then(r => r.text());
+    parseCSV(txt).forEach(r => {
+      top5[normName(r['거래처명'])] = r;
+    });
+  } catch(e) {}
+
+  // 마커 표시 (좌표 있는 것만 즉시, 없는 것 제외)
+  setLoadTxt('마커 표시 중...');
+  ['active','new','dormant'].forEach(t => placeMarkers(t));
+
+  const total = data.active.length + data.new.length + data.dormant.length;
+  const withCoord = markers.active.length + markers.new.length + markers.dormant.length;
+  document.getElementById('hstatus').textContent =
+    `기존 ${data.active.length} · 신규 ${data.new.length} · 휴면 ${data.dormant.length} (좌표 ${withCoord}/${total})`;
+
+  renderList();
+}
+
+function setLoadTxt(t) { document.getElementById('loadtxt').textContent = t; }
+
+// ── CSV 파싱 ──
+function parseCSV(txt) {
+  const lines = txt.trim().split('\n');
+  if (lines.length < 2) return [];
+  const hdrs = splitLine(lines[0]).map(h => h.replace(/"/g,'').trim());
+  return lines.slice(1).map(l => {
+    const vals = splitLine(l);
+    const obj = {};
+    hdrs.forEach((h,i) => obj[h] = (vals[i]||'').replace(/"/g,'').trim());
+    return obj;
+  }).filter(r => r['거래처명']);
+}
+
+function splitLine(line) {
+  const res = []; let cur='', inQ=false;
+  for (let i=0; i<line.length; i++) {
+    if (line[i]==='"') inQ=!inQ;
+    else if (line[i]===',' && !inQ) { res.push(cur); cur=''; }
+    else cur+=line[i];
+  }
+  res.push(cur);
+  return res;
+}
+
+// ── 마커 표시 (좌표 컬럼 기반) ──
+function placeMarkers(type) {
+  const color = COLORS[type];
+  data[type].forEach((item, idx) => {
+    const lat = parseFloat(item['위도']);
+    const lng = parseFloat(item['경도']);
+    if (!lat || !lng) return;
+
+    const marker = makeMarker(lat, lng, color, visible[type]);
+    kakao.maps.event.addListener(marker, 'click', () => showIW(marker, item, type));
+    markers[type].push(marker);
+    item._idx = idx;
+    item._hasCoord = true;
+  });
+}
+
+function makeMarker(lat, lng, color, show) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><circle cx="7" cy="7" r="6" fill="${color}" stroke="white" stroke-width="1.5"/></svg>`;
+  const url = URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
+  return new kakao.maps.Marker({
+    position: new kakao.maps.LatLng(lat, lng),
+    map: show ? map : null,
+    image: new kakao.maps.MarkerImage(url, new kakao.maps.Size(14,14),{offset:new kakao.maps.Point(7,7)})
+  });
+}
+
+// ── 인포윈도우 ──
+function showIW(marker, item, type) {
+  if (curIW) curIW.close();
+  const name  = item['거래처명']||'';
+  const addr  = item['주소']||'';
+  const biz   = item['회사구분']||'';
+  const mgr   = item['담당자']||'';
+  const date  = item['마지막거래일']||'';
+  const t5    = getTop5(name);
+  const bColor = type==='active'?'rgba(232,68,68,.15)':type==='new'?'rgba(39,174,96,.15)':'rgba(230,126,34,.15)';
+  const tColor = type==='active'?'#e84444':type==='new'?'#27ae60':'#e67e22';
+  const label  = type==='active'?'기존':type==='new'?'신규':'휴면';
+
+  const c = `<div class="iw">
+    <div class="iw-name">${name}</div>
+    <div class="iw-addr">${addr}</div>
+    <div class="iw-row">
+      <span class="iw-badge" style="background:${bColor};color:${tColor}">${label}</span>
+      ${biz?`<span class="iw-mgr">${biz}</span>`:''}
+      ${mgr?`<span class="iw-mgr">· ${mgr}</span>`:''}
+      ${date?`<span class="iw-mgr">· ${date}</span>`:''}
+    </div>
+    ${t5?`<div class="iw-top5"><b>주요품목</b>${t5}</div>`:''}
+  </div>`;
+
+  curIW = new kakao.maps.InfoWindow({content:c, removable:true});
+  curIW.open(map, marker);
+}
+
+function getTop5(name) {
+  const r = top5[normName(name)];
+  if (!r) return '';
+  const items = [];
+  for (let i=1;i<=5;i++) if(r[`TOP${i}_품목`]) items.push(`${r[`TOP${i}_품목`]} (${r[`TOP${i}_KG`]}kg)`);
+  return items.join('<br>');
+}
+
+// ── 레이어 토글 ──
+function toggleLayer(type) {
+  visible[type] = !visible[type];
+  markers[type].forEach(m => m.setMap(visible[type]?map:null));
+  document.getElementById(`leg-${type}`).classList.toggle('off', !visible[type]);
+}
+
+// ── 탭 ──
+function switchTab(t) {
+  curTab = t;
+  ['active','new','dormant'].forEach(x => {
+    document.getElementById(`tab-${x}`).classList.toggle('on', x===t);
+  });
+  renderList();
+}
+
+// ── 목록 렌더링 ──
+function renderList() {
+  const q = document.getElementById('srch').value.toLowerCase();
+  const items = data[curTab].filter(r => !q || r['거래처명'].toLowerCase().includes(q));
+  const el = document.getElementById('clist');
+
+  if (!items.length) { el.innerHTML='<div class="empty">검색 결과 없음</div>'; return; }
+
+  const bc = curTab==='active'?'b-act':curTab==='new'?'b-new':'b-dorm';
+  const lb = curTab==='active'?'기존':curTab==='new'?'신규':'휴면';
+
+  el.innerHTML = items.map((item,i) => {
+    const id = `${curTab}_${i}`;
+    const isSel = selected.some(s=>s._sid===id);
+    const mgr = item['담당자']||'';
+    const date = item['마지막거래일']||'';
+    return `<div class="ci${isSel?' sel':''}" onclick="toggleSel('${curTab}',${i})">
+      <div class="chk"></div>
+      <div class="ci-info">
+        <div class="ci-name">${item['거래처명']}</div>
+        <div class="ci-addr">${item['주소']||''}</div>
+        ${mgr||date?`<div class="ci-mgr">${mgr}${mgr&&date?' · ':''}${date}</div>`:''}
+      </div>
+      <span class="badge ${bc}">${lb}</span>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('srch').addEventListener('input', renderList);
+
+// ── 선택 ──
+function toggleSel(type, idx) {
+  const item = data[type][idx];
+  const id = `${type}_${idx}`;
+  item._sid = id;
+  const pos = selected.findIndex(s=>s._sid===id);
+  if (pos>=0) selected.splice(pos,1);
+  else selected.push(item);
+
+  document.getElementById('selcnt').textContent = selected.length;
+  document.getElementById('btnRoute').disabled = !selected.length;
+  renderList();
+  renderRoute();
+
+  // 좌표 있으면 지도 이동
+  const lat = parseFloat(item['위도']);
+  const lng = parseFloat(item['경도']);
+  if (lat && lng) map.panTo(new kakao.maps.LatLng(lat, lng));
+}
+
+function clearSelection() {
+  selected = [];
+  document.getElementById('selcnt').textContent = '0';
+  document.getElementById('btnRoute').disabled = true;
+  polylines.forEach(p=>p.setMap(null));
+  polylines = [];
+  document.getElementById('rlist').innerHTML = '';
+  renderList();
+}
+
+function renderRoute() {
+  const el = document.getElementById('rlist');
+  if (!selected.length) { el.innerHTML=''; return; }
+  el.innerHTML = [
+    {name:COMPANY.name, num:'출발', company:true},
+    ...selected.map((s,i)=>({name:s['거래처명'],num:i+1})),
+    {name:COMPANY.name, num:'도착', company:true}
+  ].map(s=>`<div class="rstep">
+    <div class="snum${s.company?' company':''}">${s.num}</div>
+    <div class="sname">${s.name}</div>
+  </div>`).join('');
+}
+
+// ── 경로 ──
+function calcRoute() {
+  const valid = selected.filter(s => parseFloat(s['위도']) && parseFloat(s['경도']));
+  if (!valid.length) { alert('선택한 거래처에 좌표 데이터가 없습니다.\nApps Script에서 [📍 좌표 일괄 변환]을 실행해주세요.'); return; }
+
+  polylines.forEach(p=>p.setMap(null));
+  polylines = [];
+
+  const opt = nearestNeighbor(valid);
+  const pts = [
+    new kakao.maps.LatLng(COMPANY.lat, COMPANY.lng),
+    ...opt.map(s=>new kakao.maps.LatLng(parseFloat(s['위도']),parseFloat(s['경도']))),
+    new kakao.maps.LatLng(COMPANY.lat, COMPANY.lng)
+  ];
+
+  const pl = new kakao.maps.Polyline({
+    path:pts, strokeWeight:3, strokeColor:'#5c6ef8',
+    strokeOpacity:.8, strokeStyle:'solid', map
+  });
+  polylines.push(pl);
+
+  const bounds = new kakao.maps.LatLngBounds();
+  pts.forEach(p=>bounds.extend(p));
+  map.setBounds(bounds);
+
+  selected = opt;
+  renderRoute();
+}
+
+function nearestNeighbor(items) {
+  const unvisited = [...items];
+  const result = [];
+  let cur = {위도:COMPANY.lat, 경도:COMPANY.lng};
+  while (unvisited.length) {
+    let minD=Infinity, minI=0;
+    unvisited.forEach((item,i)=>{
+      const d = Math.pow(parseFloat(item['위도'])-parseFloat(cur['위도']),2)+Math.pow(parseFloat(item['경도'])-parseFloat(cur['경도']),2);
+      if(d<minD){minD=d;minI=i;}
+    });
+    cur = unvisited.splice(minI,1)[0];
+    result.push(cur);
+  }
+  return result;
+}
+
+// ── 카테고리 검색 ──
+function searchCat(btn, catName, keywords) {
+  if (curCatBtn === btn && btn.classList.contains('on')) { clearCat(); return; }
+  document.querySelectorAll('.cat').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  curCatBtn = btn;
+  curCat = keywords;
+  markers.search.forEach(m=>m.setMap(null));
+  markers.search = [];
+  doSearch(keywords);
+}
+
+function doSearch(keywords) {
+  markers.search.forEach(m=>m.setMap(null));
+  markers.search = [];
+  const center = map.getCenter();
+  const opts = { location:center, radius:5000, size:15 };
+
+  // 키워드 병렬 검색
+  keywords.forEach(kw => {
+    ps.keywordSearch(kw, (result, status) => {
+      if (status !== kakao.maps.services.Status.OK) return;
+      result.forEach(place => {
+        // 중복 제거 (같은 좌표)
+        const dup = markers.search.some(m => {
+          const p = m.getPosition();
+          return Math.abs(p.getLat()-place.y)<0.0001 && Math.abs(p.getLng()-place.x)<0.0001;
+        });
+        if (dup) return;
+
+        const m = makeMarker(place.y, place.x, COLORS.search, visible.search);
+        kakao.maps.event.addListener(m, 'click', () => {
+          if(curIW) curIW.close();
+          const c=`<div class="iw">
+            <div class="iw-name">${place.place_name}</div>
+            <div class="iw-addr">${place.road_address_name||place.address_name}</div>
+            <span class="iw-badge" style="background:rgba(59,130,246,.15);color:#3b82f6">${place.category_group_name||'검색결과'}</span>
+          </div>`;
+          curIW = new kakao.maps.InfoWindow({content:c,removable:true});
+          curIW.open(map,m);
+        });
+        markers.search.push(m);
+      });
+    }, opts);
+  });
+}
+
+function clearCat() {
+  curCat=null; curCatBtn=null;
+  markers.search.forEach(m=>m.setMap(null));
+  markers.search=[];
+  document.querySelectorAll('.cat').forEach(b=>b.classList.remove('on'));
+}
+
+function normName(n) { return String(n||'').replace(/\s+/g,'').trim(); }
+</script>
+</body>
+</html>
