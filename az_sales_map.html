@@ -126,6 +126,46 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
 </head>
 <body>
 
+<!-- 비밀번호 오버레이 -->
+<div id="auth-overlay" style="
+  position:fixed;inset:0;background:#0f1117;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  z-index:9999;gap:16px;">
+  <div style="font-size:22px;font-weight:700;color:#e8eaf0">AZ <span style="color:#5c6ef8">영업지도</span></div>
+  <div style="font-size:12px;color:#7b82a0;margin-bottom:8px">(주)에이젯시스템</div>
+  <input id="pw-input" type="password" placeholder="비밀번호 입력"
+    style="padding:10px 16px;background:#1a1d27;border:1px solid #2e3247;
+    border-radius:8px;color:#e8eaf0;font-size:14px;outline:none;width:220px;text-align:center"
+    onkeydown="if(event.key==='Enter') checkPw()">
+  <button onclick="checkPw()"
+    style="padding:10px 32px;background:#5c6ef8;border:none;border-radius:8px;
+    color:white;font-size:14px;font-weight:600;cursor:pointer">
+    입력
+  </button>
+  <div id="pw-error" style="color:#e84444;font-size:12px;display:none">비밀번호가 틀렸습니다.</div>
+</div>
+
+<script>
+function checkPw() {
+  const pw = document.getElementById('pw-input').value;
+  if (pw === '0308') {
+    document.getElementById('auth-overlay').style.display = 'none';
+    sessionStorage.setItem('az_auth', '1');
+  } else {
+    document.getElementById('pw-error').style.display = 'block';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+// 세션 유지 (새로고침 시 재입력 불필요)
+if (sessionStorage.getItem('az_auth') === '1') {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('auth-overlay').style.display = 'none';
+  });
+}
+</script>
+
 <header>
   <div class="logo">AZ <span>영업지도</span></div>
   <div class="hdiv"></div>
