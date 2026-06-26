@@ -221,17 +221,17 @@ if (sessionStorage.getItem('az_auth') === '1') {
       <div class="region-group" id="rg-gju">
         <button class="region-btn" onclick="toggleRegion('gju')">광주 ▾</button>
         <div class="region-dropdown">
-          <button class="sub-btn" onclick="moveRegion(35.2396,126.8498,'광산구')">광산구</button>
-          <button class="sub-btn" onclick="moveRegion(35.1666,126.9023,'북구')">북구</button>
-          <button class="sub-btn" onclick="moveRegion(35.1515,126.8514,'서구')">서구</button>
-          <button class="sub-btn" onclick="moveRegion(35.1328,126.9023,'남구')">남구</button>
-          <button class="sub-btn" onclick="moveRegion(35.1464,126.9231,'동구')">동구</button>
+          <button class="sub-btn" onclick="moveRegion(35.1736,126.7941,'광산구')">광산구</button>
+          <button class="sub-btn" onclick="moveRegion(35.1736,126.9128,'북구')">북구</button>
+          <button class="sub-btn" onclick="moveRegion(35.1496,126.8874,'서구')">서구</button>
+          <button class="sub-btn" onclick="moveRegion(35.1337,126.9028,'남구')">남구</button>
+          <button class="sub-btn" onclick="moveRegion(35.1455,126.9229,'동구')">동구</button>
         </div>
       </div>
       <div class="region-group" id="rg-jnm">
         <button class="region-btn" onclick="toggleRegion('jnm')">전남 ▾</button>
         <div class="region-dropdown">
-          <button class="sub-btn" onclick="moveRegion(34.8679,127.7306,'순천')">순천</button>
+          <button class="sub-btn" onclick="moveRegion(34.9508,127.4872,'순천')">순천</button>
           <button class="sub-btn" onclick="moveRegion(34.8118,126.3922,'목포')">목포</button>
           <button class="sub-btn" onclick="moveRegion(34.7604,127.6622,'여수')">여수</button>
           <button class="sub-btn" onclick="moveRegion(34.9407,127.6957,'광양')">광양</button>
@@ -239,21 +239,21 @@ if (sessionStorage.getItem('az_auth') === '1') {
           <button class="sub-btn" onclick="moveRegion(34.5730,126.5990,'해남')">해남</button>
           <button class="sub-btn" onclick="moveRegion(34.6427,126.7631,'강진')">강진</button>
           <button class="sub-btn" onclick="moveRegion(35.3247,126.9878,'담양')">담양</button>
-          <button class="sub-btn" onclick="moveRegion(34.7905,126.4568,'무안')">무안</button>
+          <button class="sub-btn" onclick="moveRegion(34.9908,126.4815,'무안')">무안</button>
           <button class="sub-btn" onclick="moveRegion(34.6036,127.2816,'고흥')">고흥</button>
           <button class="sub-btn" onclick="moveRegion(34.7993,126.6968,'영암')">영암</button>
-          <button class="sub-btn" onclick="moveRegion(34.3095,127.0000,'완도')">완도</button>
+          <button class="sub-btn" onclick="moveRegion(34.3095,126.7547,'완도')">완도</button>
           <button class="sub-btn" onclick="moveRegion(34.6896,126.9048,'장흥')">장흥</button>
           <button class="sub-btn" onclick="moveRegion(35.0646,126.9868,'화순')">화순</button>
-          <button class="sub-btn" onclick="moveRegion(34.8268,126.1063,'신안')">신안</button>
+          <button class="sub-btn" onclick="moveRegion(34.8268,126.3726,'신안')">신안</button>
         </div>
       </div>
       <div class="region-group" id="rg-jnb">
         <button class="region-btn" onclick="toggleRegion('jnb')">전북 ▾</button>
         <div class="region-dropdown">
-          <button class="sub-btn" onclick="moveRegion(35.8153,127.1087,'전주-완산')">전주-완산</button>
+          <button class="sub-btn" onclick="moveRegion(35.8021,127.1089,'전주-완산')">전주-완산</button>
           <button class="sub-btn" onclick="moveRegion(35.8467,127.1292,'전주-덕진')">전주-덕진</button>
-          <button class="sub-btn" onclick="moveRegion(35.9678,126.7368,'군산')">군산</button>
+          <button class="sub-btn" onclick="moveRegion(35.9676,126.7368,'군산')">군산</button>
           <button class="sub-btn" onclick="moveRegion(35.9483,126.9578,'익산')">익산</button>
           <button class="sub-btn" onclick="moveRegion(35.4164,127.3930,'남원')">남원</button>
           <button class="sub-btn" onclick="moveRegion(35.9046,127.1627,'완주')">완주</button>
@@ -497,13 +497,18 @@ function switchTab(t) {
   ['active','new','dormant'].forEach(x => {
     document.getElementById(`tab-${x}`).classList.toggle('on', x===t);
   });
-  renderList();
+  filterListByBounds();
 }
 
 // ── 목록 렌더링 ──
 function renderList() {
   const q = document.getElementById('srch').value.toLowerCase();
-  const items = data[curTab].filter(r => (!q || r['거래처명'].toLowerCase().includes(q)) && (r._inBounds === undefined || r._inBounds === true));
+  // 검색어 있으면 전체 검색, 없으면 현재 지도 영역만
+  const items = data[curTab].filter(r => {
+    const nameMatch = !q || r['거래처명'].toLowerCase().includes(q);
+    if (q) return nameMatch; // 검색어 있으면 지역 필터 무시
+    return nameMatch && r._inBounds !== false;
+  });
   const el = document.getElementById('clist');
 
   if (!items.length) { el.innerHTML='<div class="empty">검색 결과 없음</div>'; return; }
@@ -511,12 +516,40 @@ function renderList() {
   const bc = curTab==='active'?'b-act':curTab==='new'?'b-new':'b-dorm';
   const lb = curTab==='active'?'기존':curTab==='new'?'신규':'휴면';
 
-  el.innerHTML = items.map((item,i) => {
+  // 선택된 거래처 상단 고정
+  const selItems = selected.filter(s => s._sid && s._sid.startsWith(curTab));
+  const selHtml = selItems.length ? `
+    <div style="padding:4px 12px;font-size:10px;color:var(--accent);font-weight:600;letter-spacing:.5px">
+      ✅ 선택됨 ${selItems.length}개
+    </div>` + selItems.map(item => {
+      const id = item._sid;
+      const i = parseInt(id.split('_')[1]);
+      const mgr = item['담당자']||'';
+      const date = item['마지막거래일']||'';
+      return `<div class="ci sel" onclick="toggleSel('${curTab}',${i})">
+        <div class="chk"></div>
+        <div class="ci-info">
+          <div class="ci-name">${item['거래처명']}</div>
+          <div class="ci-addr">${item['주소']||''}</div>
+          ${mgr||date?`<div class="ci-mgr">${mgr}${mgr&&date?' · ':''}${date}</div>`:''}
+        </div>
+        <span class="badge ${bc}">${lb}</span>
+      </div>`;
+    }).join('') + `<div style="height:1px;background:var(--border);margin:4px 0"></div>` : '';
+
+  // 선택 안 된 항목만 아래 표시 (이미 선택된 건 위에 표시했으므로)
+  const unselItems = items.filter(item => {
+    const idx = data[curTab].indexOf(item);
+    const id = curTab+'_'+idx;
+    return !selected.some(s=>s._sid===id);
+  });
+
+  el.innerHTML = selHtml + (unselItems.length ? unselItems.map((item) => {
+    const i = data[curTab].indexOf(item);
     const id = `${curTab}_${i}`;
-    const isSel = selected.some(s=>s._sid===id);
     const mgr = item['담당자']||'';
     const date = item['마지막거래일']||'';
-    return `<div class="ci${isSel?' sel':''}" onclick="toggleSel('${curTab}',${i})">
+    return `<div class="ci" onclick="toggleSel('${curTab}',${i})">
       <div class="chk"></div>
       <div class="ci-info">
         <div class="ci-name">${item['거래처명']}</div>
@@ -525,7 +558,7 @@ function renderList() {
       </div>
       <span class="badge ${bc}">${lb}</span>
     </div>`;
-  }).join('');
+  }).join('') : '<div class="empty">이 지역 거래처 없음</div>');
 }
 
 document.getElementById('srch').addEventListener('input', renderList);
@@ -799,14 +832,18 @@ function filterListByBounds() {
   const bounds = map.getBounds();
   const sw = bounds.getSouthWest();
   const ne = bounds.getNorthEast();
+  const swLat = sw.getLat(), swLng = sw.getLng();
+  const neLat = ne.getLat(), neLng = ne.getLng();
 
   ['active','new','dormant'].forEach(t => {
     data[t].forEach(item => {
       const lat = parseFloat(item['위도']);
       const lng = parseFloat(item['경도']);
-      item._inBounds = lat && lng &&
-        lat >= sw.getLat() && lat <= ne.getLat() &&
-        lng >= sw.getLng() && lng <= ne.getLng();
+      if (!lat || !lng) {
+        item._inBounds = false;
+        return;
+      }
+      item._inBounds = lat >= swLat && lat <= neLat && lng >= swLng && lng <= neLng;
     });
   });
   renderList();
