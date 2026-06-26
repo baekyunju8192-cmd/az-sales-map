@@ -111,8 +111,8 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
 .region-group { position:relative; }
 .region-btn { padding:5px 14px; background:var(--surface); border:1px solid var(--border); border-radius:20px; color:var(--text); font-size:12px; cursor:pointer; transition:all .15s; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,.3); }
 .region-btn:hover, .region-btn.on { background:var(--accent); border-color:var(--accent); font-weight:600; }
-.region-dropdown { position:absolute; top:calc(100% + 6px); left:0; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:6px; min-width:140px; box-shadow:0 4px 16px rgba(0,0,0,.4); display:none; z-index:10; display:grid; grid-template-columns:1fr 1fr; gap:3px; }
-.region-group.open .region-dropdown { display:grid; }
+.region-dropdown { position:absolute; top:calc(100% + 6px); left:0; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:6px; min-width:160px; max-height:300px; overflow-y:auto; box-shadow:0 4px 16px rgba(0,0,0,.4); display:none; z-index:10; display:grid; grid-template-columns:1fr 1fr; gap:3px; }
+.region-group.open .region-dropdown { display:grid !important; }
 .sub-btn { padding:4px 8px; background:none; border:1px solid var(--border); border-radius:5px; color:var(--muted); font-size:11px; cursor:pointer; transition:all .15s; text-align:center; white-space:nowrap; }
 .sub-btn:hover, .sub-btn.on { background:var(--accent); border-color:var(--accent); color:white; }
 
@@ -373,25 +373,39 @@ function setLoadTxt(t) { document.getElementById('loadtxt').textContent = t; }
 
 // ── CSV 파싱 ──
 function parseCSV(txt) {
-  const lines = txt.trim().split('\n');
+  // 줄바꿈 정규화
+  const normalized = txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim();
+  const lines = normalized.split('\n');
   if (lines.length < 2) return [];
   const hdrs = splitLine(lines[0]).map(h => h.replace(/"/g,'').trim());
-  return lines.slice(1).map(l => {
-    const vals = splitLine(l);
-    const obj = {};
-    hdrs.forEach((h,i) => obj[h] = (vals[i]||'').replace(/"/g,'').trim());
-    return obj;
-  }).filter(r => r['거래처명']);
+  return lines.slice(1)
+    .filter(l => l.trim())
+    .map(l => {
+      const vals = splitLine(l);
+      const obj = {};
+      hdrs.forEach((h,i) => {
+        obj[h] = (vals[i]||'').replace(/^"|"$/g,'').trim();
+      });
+      return obj;
+    }).filter(r => r['거래처명']);
 }
 
 function splitLine(line) {
   const res = []; let cur='', inQ=false;
   for (let i=0; i<line.length; i++) {
-    if (line[i]==='"') inQ=!inQ;
-    else if (line[i]===',' && !inQ) { res.push(cur); cur=''; }
-    else cur+=line[i];
+    const ch = line[i];
+    if (ch==='"') {
+      // 연속 따옴표 처리
+      if (inQ && line[i+1]==='"') { cur+='"'; i++; }
+      else inQ=!inQ;
+    } else if (ch===',' && !inQ) {
+      res.push(cur.trim());
+      cur='';
+    } else {
+      cur+=ch;
+    }
   }
-  res.push(cur);
+  res.push(cur.trim());
   return res;
 }
 
@@ -477,7 +491,7 @@ function switchTab(t) {
 // ── 목록 렌더링 ──
 function renderList() {
   const q = document.getElementById('srch').value.toLowerCase();
-  const items = data[curTab].filter(r => (!q || r['거래처명'].toLowerCase().includes(q)) && (r._inBounds !== false));
+  const items = data[curTab].filter(r => (!q || r['거래처명'].toLowerCase().includes(q)) && (r._inBounds === undefined || r._inBounds === true));
   const el = document.getElementById('clist');
 
   if (!items.length) { el.innerHTML='<div class="empty">검색 결과 없음</div>'; return; }
@@ -763,10 +777,9 @@ function toggleRegion(id) {
 function moveRegion(lat, lng, name) {
   map.setCenter(new kakao.maps.LatLng(lat, lng));
   map.setLevel(5);
-  // 드롭다운 닫기
   document.querySelectorAll('.region-group').forEach(g => g.classList.remove('open'));
-  // 사이드패널 필터
-  filterListByBounds();
+  // 지도 이동 완료 후 필터 적용
+  setTimeout(filterListByBounds, 500);
 }
 
 function filterListByBounds() {
