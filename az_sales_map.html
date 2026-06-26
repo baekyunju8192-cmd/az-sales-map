@@ -90,7 +90,7 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
 #map { width:100%; height:100%; }
 
 /* 카테고리 바 */
-.cat-bar { position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:5; display:flex; gap:5px; background:var(--surface); padding:6px 8px; border-radius:10px; border:1px solid var(--border); box-shadow:0 4px 20px rgba(0,0,0,.4); flex-wrap:wrap; justify-content:center; max-width:calc(100% - 32px); }
+.cat-bar { position:absolute; top:12px; left:50%; transform:translateX(-50%); margin-left:80px; z-index:5; display:flex; gap:5px; background:var(--surface); padding:6px 8px; border-radius:10px; border:1px solid var(--border); box-shadow:0 4px 20px rgba(0,0,0,.4); flex-wrap:wrap; justify-content:center; max-width:calc(100% - 32px); }
 .cat { padding:4px 11px; background:var(--surface2); border:1px solid var(--border); border-radius:20px; color:var(--muted); font-size:12px; cursor:pointer; transition:all .15s; white-space:nowrap; }
 .cat:hover { border-color:var(--blue); color:var(--text); }
 .cat.on { background:var(--blue); border-color:var(--blue); color:white; font-weight:600; }
@@ -105,6 +105,16 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
 .iw-mgr { font-size:10px; color:#7b82a0; }
 .iw-top5 { margin-top:6px; font-size:10px; color:#7b82a0; border-top:1px solid #2e3247; padding-top:5px; line-height:1.6; }
 .iw-top5 b { color:#e8eaf0; display:block; margin-bottom:2px; }
+
+/* 지역 선택 바 */
+.region-bar { position:absolute; top:12px; left:12px; z-index:5; display:flex; gap:6px; }
+.region-group { position:relative; }
+.region-btn { padding:5px 14px; background:var(--surface); border:1px solid var(--border); border-radius:20px; color:var(--text); font-size:12px; cursor:pointer; transition:all .15s; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+.region-btn:hover, .region-btn.on { background:var(--accent); border-color:var(--accent); font-weight:600; }
+.region-dropdown { position:absolute; top:calc(100% + 6px); left:0; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:6px; min-width:140px; box-shadow:0 4px 16px rgba(0,0,0,.4); display:none; z-index:10; display:grid; grid-template-columns:1fr 1fr; gap:3px; }
+.region-group.open .region-dropdown { display:grid; }
+.sub-btn { padding:4px 8px; background:none; border:1px solid var(--border); border-radius:5px; color:var(--muted); font-size:11px; cursor:pointer; transition:all .15s; text-align:center; white-space:nowrap; }
+.sub-btn:hover, .sub-btn.on { background:var(--accent); border-color:var(--accent); color:white; }
 
 /* 로딩 */
 .loading { position:absolute; inset:0; background:rgba(15,17,23,.85); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:20; gap:10px; }
@@ -168,6 +178,58 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
   </div>
 
   <div class="map-wrap">
+    <!-- 지역 선택 바 -->
+    <div class="region-bar">
+      <div class="region-group" id="rg-gju">
+        <button class="region-btn" onclick="toggleRegion('gju')">광주 ▾</button>
+        <div class="region-dropdown">
+          <button class="sub-btn" onclick="moveRegion(35.2396,126.8498,'광산구')">광산구</button>
+          <button class="sub-btn" onclick="moveRegion(35.1666,126.9023,'북구')">북구</button>
+          <button class="sub-btn" onclick="moveRegion(35.1515,126.8514,'서구')">서구</button>
+          <button class="sub-btn" onclick="moveRegion(35.1328,126.9023,'남구')">남구</button>
+          <button class="sub-btn" onclick="moveRegion(35.1464,126.9231,'동구')">동구</button>
+        </div>
+      </div>
+      <div class="region-group" id="rg-jnm">
+        <button class="region-btn" onclick="toggleRegion('jnm')">전남 ▾</button>
+        <div class="region-dropdown">
+          <button class="sub-btn" onclick="moveRegion(34.8679,127.7306,'순천')">순천</button>
+          <button class="sub-btn" onclick="moveRegion(34.8118,126.3922,'목포')">목포</button>
+          <button class="sub-btn" onclick="moveRegion(34.7604,127.6622,'여수')">여수</button>
+          <button class="sub-btn" onclick="moveRegion(34.9407,127.6957,'광양')">광양</button>
+          <button class="sub-btn" onclick="moveRegion(35.0160,126.7107,'나주')">나주</button>
+          <button class="sub-btn" onclick="moveRegion(34.5730,126.5990,'해남')">해남</button>
+          <button class="sub-btn" onclick="moveRegion(34.6427,126.7631,'강진')">강진</button>
+          <button class="sub-btn" onclick="moveRegion(35.3247,126.9878,'담양')">담양</button>
+          <button class="sub-btn" onclick="moveRegion(34.7905,126.4568,'무안')">무안</button>
+          <button class="sub-btn" onclick="moveRegion(34.6036,127.2816,'고흥')">고흥</button>
+          <button class="sub-btn" onclick="moveRegion(34.7993,126.6968,'영암')">영암</button>
+          <button class="sub-btn" onclick="moveRegion(34.3095,127.0000,'완도')">완도</button>
+          <button class="sub-btn" onclick="moveRegion(34.6896,126.9048,'장흥')">장흥</button>
+          <button class="sub-btn" onclick="moveRegion(35.0646,126.9868,'화순')">화순</button>
+          <button class="sub-btn" onclick="moveRegion(34.8268,126.1063,'신안')">신안</button>
+        </div>
+      </div>
+      <div class="region-group" id="rg-jnb">
+        <button class="region-btn" onclick="toggleRegion('jnb')">전북 ▾</button>
+        <div class="region-dropdown">
+          <button class="sub-btn" onclick="moveRegion(35.8153,127.1087,'전주-완산')">전주-완산</button>
+          <button class="sub-btn" onclick="moveRegion(35.8467,127.1292,'전주-덕진')">전주-덕진</button>
+          <button class="sub-btn" onclick="moveRegion(35.9678,126.7368,'군산')">군산</button>
+          <button class="sub-btn" onclick="moveRegion(35.9483,126.9578,'익산')">익산</button>
+          <button class="sub-btn" onclick="moveRegion(35.4164,127.3930,'남원')">남원</button>
+          <button class="sub-btn" onclick="moveRegion(35.9046,127.1627,'완주')">완주</button>
+          <button class="sub-btn" onclick="moveRegion(35.7298,126.7183,'부안')">부안</button>
+          <button class="sub-btn" onclick="moveRegion(35.8033,126.8838,'김제')">김제</button>
+          <button class="sub-btn" onclick="moveRegion(35.5695,126.8454,'정읍')">정읍</button>
+          <button class="sub-btn" onclick="moveRegion(35.6176,127.2895,'임실')">임실</button>
+          <button class="sub-btn" onclick="moveRegion(35.3744,127.1374,'순창')">순창</button>
+          <button class="sub-btn" onclick="moveRegion(35.7925,127.4317,'진안')">진안</button>
+          <button class="sub-btn" onclick="moveRegion(35.4268,126.7026,'고창')">고창</button>
+        </div>
+      </div>
+    </div>
+
     <div class="cat-bar">
       <button class="cat" onclick="searchCat(this,'육가공',['육가공장','육가공품','양념육','가공육'])">🏭 육가공</button>
       <button class="cat" onclick="searchCat(this,'식당',['샤브샤브','무한리필','기사식당','뷔페','함바'])">🍽️ 식당</button>
@@ -190,6 +252,7 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
 const SS_ID = '1mIXExxFRuZmcy7VKEe_w63Yu1QOqT5r8qondm4k91-c';
 const GID = { active:'0', new:'2043143991', dormant:'1615833992' };
 const COMPANY = { lat:35.18654, lng:126.79147, name:'(주)에이젯시스템' };
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbww09dEKrw_y5NzFix3srMH0Wd6ygclA427ZdQiqWbXePQ-q0OwIkiX3SiSbjt8YBL8XA/exec'; // Apps Script 배포 후 URL 입력
 const COLORS = { active:'#e84444', new:'#27ae60', dormant:'#e67e22', search:'#3b82f6' };
 
 // ── 상태 ──
@@ -202,6 +265,8 @@ let curTab = 'active';
 let curIW = null;
 let curCatBtn = null;
 let curCat = null;
+let curCatName = '';
+let searchSelected = [];
 let polylines = [];
 let top5 = {};
 
@@ -374,7 +439,7 @@ function switchTab(t) {
 // ── 목록 렌더링 ──
 function renderList() {
   const q = document.getElementById('srch').value.toLowerCase();
-  const items = data[curTab].filter(r => !q || r['거래처명'].toLowerCase().includes(q));
+  const items = data[curTab].filter(r => (!q || r['거래처명'].toLowerCase().includes(q)) && (r._inBounds !== false));
   const el = document.getElementById('clist');
 
   if (!items.length) { el.innerHTML='<div class="empty">검색 결과 없음</div>'; return; }
@@ -423,6 +488,7 @@ function toggleSel(type, idx) {
 
 function clearSelection() {
   selected = [];
+  searchSelected = [];
   document.getElementById('selcnt').textContent = '0';
   document.getElementById('btnRoute').disabled = true;
   polylines.forEach(p=>p.setMap(null));
@@ -446,7 +512,10 @@ function renderRoute() {
 
 // ── 경로 ──
 function calcRoute() {
-  const valid = selected.filter(s => parseFloat(s['위도']) && parseFloat(s['경도']));
+  const valid = [
+    ...selected.filter(s => parseFloat(s['위도']) && parseFloat(s['경도'])),
+    ...searchSelected.filter(s => s.lat && s.lng).map(s => ({...s, '위도':s.lat, '경도':s.lng}))
+  ];
   if (!valid.length) { alert('선택한 거래처에 좌표 데이터가 없습니다.\nApps Script에서 [📍 좌표 일괄 변환]을 실행해주세요.'); return; }
 
   polylines.forEach(p=>p.setMap(null));
@@ -491,6 +560,7 @@ function nearestNeighbor(items) {
 
 // ── 카테고리 검색 ──
 function searchCat(btn, catName, keywords) {
+  curCatName = catName;
   if (curCatBtn === btn && btn.classList.contains('on')) { clearCat(); return; }
   document.querySelectorAll('.cat').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
@@ -501,34 +571,85 @@ function searchCat(btn, catName, keywords) {
   doSearch(keywords);
 }
 
+// 대상 지역 bounds (광주/전남/전북)
+const TARGET_BOUNDS = {
+  minLat: 33.9,  // 제주 제외, 전남 최남단
+  maxLat: 36.2,  // 전북 최북단
+  minLng: 126.1, // 전남 서쪽 끝
+  maxLng: 127.9  // 전북 동쪽 끝
+};
+
+function isInTargetRegion(lat, lng) {
+  const la = parseFloat(lat);
+  const lo = parseFloat(lng);
+  return la >= TARGET_BOUNDS.minLat && la <= TARGET_BOUNDS.maxLat &&
+         lo >= TARGET_BOUNDS.minLng && lo <= TARGET_BOUNDS.maxLng;
+}
+
 function doSearch(keywords) {
   markers.search.forEach(m=>m.setMap(null));
   markers.search = [];
   const center = map.getCenter();
   const opts = { location:center, radius:5000, size:15 };
 
-  // 키워드 병렬 검색
+  // 광주/전남/전북 좌표 범위
+  const minLat=34.3, maxLat=35.95, minLng=126.1, maxLng=127.9;
+
   keywords.forEach(kw => {
     ps.keywordSearch(kw, (result, status) => {
       if (status !== kakao.maps.services.Status.OK) return;
       result.forEach(place => {
-        // 중복 제거 (같은 좌표)
+        const lat = parseFloat(place.y);
+        const lng = parseFloat(place.x);
+
+        // 광주/전남/전북 범위 밖이면 제외
+        if (lat < minLat || lat > maxLat || lng < minLng || lng > maxLng) return;
+
+        // 중복 제거
         const dup = markers.search.some(m => {
           const p = m.getPosition();
-          return Math.abs(p.getLat()-place.y)<0.0001 && Math.abs(p.getLng()-place.x)<0.0001;
+          return Math.abs(p.getLat()-lat)<0.0001 && Math.abs(p.getLng()-lng)<0.0001;
         });
         if (dup) return;
 
-        const m = makeMarker(place.y, place.x, COLORS.search, visible.search);
+        const m = makeMarker(lat, lng, COLORS.search, visible.search);
+        // place 정보 저장
+        m._place = place;
+        m._category = curCatName;
+
         kakao.maps.event.addListener(m, 'click', () => {
           if(curIW) curIW.close();
+          const pid = 'p_' + Math.random().toString(36).substr(2,9);
+          const addr = place.road_address_name || place.address_name;
           const c=`<div class="iw">
             <div class="iw-name">${place.place_name}</div>
-            <div class="iw-addr">${place.road_address_name||place.address_name}</div>
-            <span class="iw-badge" style="background:rgba(59,130,246,.15);color:#3b82f6">${place.category_group_name||'검색결과'}</span>
+            <div class="iw-addr">${addr}</div>
+            <span class="iw-badge" style="background:rgba(59,130,246,.15);color:#3b82f6">${place.category_group_name||curCatName||'검색결과'}</span>
+            <div style="display:flex;gap:5px;margin-top:8px">
+              <button onclick="addToRoute('${pid}')" id="btn-route-${pid}"
+                style="flex:1;padding:5px;background:#5c6ef8;border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer">
+                📍 경로 추가
+              </button>
+              <button onclick="registerProspect('${place.place_name}','${addr}','${curCatName||''}',${lat},${lng})"
+                style="flex:1;padding:5px;background:#27ae60;border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer">
+                📋 영업처 등록
+              </button>
+            </div>
           </div>`;
           curIW = new kakao.maps.InfoWindow({content:c,removable:true});
           curIW.open(map,m);
+
+          // 경로 추가 버튼 상태 반영
+          setTimeout(() => {
+            const btn = document.getElementById('btn-route-'+pid);
+            if (btn && searchSelected.some(s=>s._pid===pid)) {
+              btn.textContent = '✅ 추가됨';
+              btn.style.background = '#3b6ef8';
+            }
+          }, 100);
+
+          // 전역에 현재 place 저장
+          window._curPlace = { pid:pid, name:place.place_name, addr, cat:curCatName||'', lat, lng, marker:m };
         });
         markers.search.push(m);
       });
@@ -544,6 +665,91 @@ function clearCat() {
 }
 
 function normName(n) { return String(n||'').replace(/\s+/g,'').trim(); }
+
+// ── 파란 마커 경로 추가 ──
+function addToRoute(pid) {
+  if (!window._curPlace || window._curPlace.pid !== pid) return;
+  const p = window._curPlace;
+
+  const already = searchSelected.findIndex(s => s._pid === pid);
+  if (already >= 0) {
+    searchSelected.splice(already, 1);
+    document.getElementById('btn-route-'+pid).textContent = '📍 경로 추가';
+    document.getElementById('btn-route-'+pid).style.background = '#5c6ef8';
+  } else {
+    searchSelected.push({
+      _pid: pid,
+      거래처명: p.name,
+      주소: p.addr,
+      위도: p.lat,
+      경도: p.lng,
+      _type: 'search'
+    });
+    document.getElementById('btn-route-'+pid).textContent = '✅ 추가됨';
+    document.getElementById('btn-route-'+pid).style.background = '#3b6ef8';
+  }
+
+  // 경로 선택 카운트 업데이트
+  const total = selected.length + searchSelected.length;
+  document.getElementById('selcnt').textContent = total;
+  document.getElementById('btnRoute').disabled = total === 0;
+}
+
+// ── 영업처 등록 ──
+async function registerProspect(name, addr, cat, lat, lng) {
+  if (WEBAPP_URL === 'YOUR_WEBAPP_URL') {
+    alert('Apps Script Web App URL을 설정해주세요.');
+    return;
+  }
+  try {
+    const res = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action:'addProspect', name, address:addr, category:cat, lat, lng })
+    });
+    const json = await res.json();
+    alert(json.msg);
+  } catch(e) {
+    alert('등록 실패: ' + e.message);
+  }
+}
+
+// ── 지역 선택 ──
+function toggleRegion(id) {
+  const groups = document.querySelectorAll('.region-group');
+  groups.forEach(g => {
+    if (g.id === 'rg-'+id) g.classList.toggle('open');
+    else g.classList.remove('open');
+  });
+}
+
+function moveRegion(lat, lng, name) {
+  map.setCenter(new kakao.maps.LatLng(lat, lng));
+  map.setLevel(5);
+  // 드롭다운 닫기
+  document.querySelectorAll('.region-group').forEach(g => g.classList.remove('open'));
+  // 사이드패널 필터
+  filterListByBounds();
+}
+
+function filterListByBounds() {
+  const bounds = map.getBounds();
+  const sw = bounds.getSouthWest();
+  const ne = bounds.getNorthEast();
+
+  ['active','new','dormant'].forEach(t => {
+    data[t].forEach(item => {
+      const lat = parseFloat(item['위도']);
+      const lng = parseFloat(item['경도']);
+      item._inBounds = lat && lng &&
+        lat >= sw.getLat() && lat <= ne.getLat() &&
+        lng >= sw.getLng() && lng <= ne.getLng();
+    });
+  });
+  renderList();
+}
+
+// 지도 이동 시 목록 자동 필터
+kakao.maps.event.addListener(map, 'idle', filterListByBounds);
 </script>
 </body>
 </html>
