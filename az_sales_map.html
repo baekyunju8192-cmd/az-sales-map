@@ -64,9 +64,9 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
 .ci-addr { font-size:10px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .ci-mgr { font-size:10px; color:var(--muted); }
 .badge { font-size:9px; padding:1px 5px; border-radius:3px; flex-shrink:0; font-weight:600; }
-.b-act  { background:rgba(232,68,68,.15);  color:var(--red); }
+.b-act  { background:rgba(59,130,246,.15); color:var(--blue); }
 .b-new  { background:rgba(39,174,96,.15);  color:var(--green); }
-.b-dorm { background:rgba(230,126,34,.15); color:var(--orange); }
+.b-dorm { background:rgba(136,136,136,.15); color:#888888; }
 .empty { padding:16px 12px; text-align:center; color:var(--muted); font-size:12px; }
 
 /* 경로 */
@@ -169,16 +169,16 @@ if (sessionStorage.getItem('az_auth') === '1') {
   <div class="hdiv"></div>
   <div class="legend">
     <div class="leg" id="leg-active" onclick="toggleLayer('active')">
-      <div class="dot" style="background:var(--red)"></div>기존거래처
+      <div class="dot" style="background:var(--blue)"></div>기존거래처
     </div>
     <div class="leg" id="leg-new" onclick="toggleLayer('new')">
       <div class="dot" style="background:var(--green)"></div>신규거래처
     </div>
     <div class="leg" id="leg-dormant" onclick="toggleLayer('dormant')">
-      <div class="dot" style="background:var(--orange)"></div>휴면거래처
+      <div class="dot" style="background:#888888"></div>휴면거래처
     </div>
     <div class="leg" id="leg-search" onclick="toggleLayer('search')">
-      <div class="dot" style="background:var(--blue)"></div>카테고리검색
+      <div class="dot" style="background:var(--red)"></div>카테고리검색
     </div>
   </div>
   <div class="hright" id="hstatus">데이터 로딩 중...</div>
@@ -196,13 +196,13 @@ if (sessionStorage.getItem('az_auth') === '1') {
     <div class="sb-sec" style="flex:1;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0">
       <div class="tabs">
         <button class="tab on" id="tab-active" onclick="switchTab('active')">
-          <div class="tdot" style="background:var(--red)"></div>기존
+          <div class="tdot" style="background:var(--blue)"></div>기존
         </button>
         <button class="tab" id="tab-new" onclick="switchTab('new')">
           <div class="tdot" style="background:var(--green)"></div>신규
         </button>
         <button class="tab" id="tab-dormant" onclick="switchTab('dormant')">
-          <div class="tdot" style="background:var(--orange)"></div>휴면
+          <div class="tdot" style="background:#888888"></div>휴면
         </button>
       </div>
       <div class="clist" id="clist"></div>
@@ -291,7 +291,7 @@ const SS_ID = '1mIXExxFRuZmcy7VKEe_w63Yu1QOqT5r8qondm4k91-c';
 const GID = { active:'0', new:'2043143991', dormant:'1615833992' };
 const COMPANY = { lat:35.18654, lng:126.79147, name:'(주)에이젯시스템' };
 const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbww09dEKrw_y5NzFix3srMH0Wd6ygclA427ZdQiqWbXePQ-q0OwIkiX3SiSbjt8YBL8XA/exec'; // Apps Script 배포 후 URL 입력
-const COLORS = { active:'#e84444', new:'#27ae60', dormant:'#e67e22', search:'#3b82f6' };
+const COLORS = { active:'#3b82f6', new:'#27ae60', dormant:'#888888', search:'#e84444' };
 
 // ── 상태 ──
 let map, ps;
@@ -456,8 +456,8 @@ function showIW(marker, item, type) {
   const mgr   = item['담당자']||'';
   const date  = item['마지막거래일']||'';
   const t5    = getTop5(name);
-  const bColor = type==='active'?'rgba(232,68,68,.15)':type==='new'?'rgba(39,174,96,.15)':'rgba(230,126,34,.15)';
-  const tColor = type==='active'?'#e84444':type==='new'?'#27ae60':'#e67e22';
+  const bColor = type==='active'?'rgba(59,130,246,.15)':type==='new'?'rgba(39,174,96,.15)':'rgba(136,136,136,.15)';
+  const tColor = type==='active'?'#3b82f6':type==='new'?'#27ae60':'#888888';
   const label  = type==='active'?'기존':type==='new'?'신규':'휴면';
 
   const c = `<div class="iw">
@@ -788,9 +788,10 @@ function toggleRegion(id) {
 
 function moveRegion(lat, lng, name) {
   map.setCenter(new kakao.maps.LatLng(lat, lng));
-  map.setLevel(5);
+  // 광주 구단위는 7, 시단위는 8
+  const level = (name.includes('구') || name.includes('동')) ? 8 : 9;
+  map.setLevel(level);
   document.querySelectorAll('.region-group').forEach(g => g.classList.remove('open'));
-  // 지도 이동 완료 후 필터 적용
   setTimeout(filterListByBounds, 500);
 }
 
