@@ -490,6 +490,10 @@ function showIW(marker, item, type) {
   const tColor = type==='active'?'#3b82f6':type==='new'?'#27ae60':'#888888';
   const label  = type==='active'?'기존':type==='new'?'신규':'휴면';
 
+  const idx = data[type].indexOf(item);
+  const sid = `${type}_${idx}`;
+  const isSel = selected.some(s=>s._sid===sid);
+
   const c = `<div class="iw">
     <div class="iw-name">${name}</div>
     <div class="iw-addr">${addr}</div>
@@ -500,6 +504,12 @@ function showIW(marker, item, type) {
       ${date?`<span class="iw-mgr">· ${date}</span>`:''}
     </div>
     ${t5?`<div class="iw-top5"><b>주요품목</b>${t5}</div>`:''}
+    <div style="margin-top:8px">
+      <button id="iw-btn-${sid}" onclick="toggleSelFromMap('${type}',${idx})"
+        style="width:100%;padding:5px;background:${isSel?'#3b6ef8':'#5c6ef8'};border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer;font-weight:600">
+        ${isSel?'✅ 경로에 추가됨':'📍 경로 추가'}
+      </button>
+    </div>
   </div>`;
 
   curIW = new kakao.maps.InfoWindow({content:c, removable:true});
@@ -794,6 +804,19 @@ function clearCat() {
 }
 
 function normName(n) { return String(n||'').replace(/\s+/g,'').trim(); }
+
+// 지도 마커에서 경로 추가/제거
+function toggleSelFromMap(type, idx) {
+  toggleSel(type, idx);
+  // 버튼 상태 업데이트
+  const sid = type+'_'+idx;
+  const btn = document.getElementById('iw-btn-'+sid);
+  if (btn) {
+    const isSel = selected.some(s=>s._sid===sid);
+    btn.textContent = isSel ? '✅ 경로에 추가됨' : '📍 경로 추가';
+    btn.style.background = isSel ? '#3b6ef8' : '#5c6ef8';
+  }
+}
 
 function closeOverlay() {
   if(curIW) { curIW.setMap(null); curIW=null; }
