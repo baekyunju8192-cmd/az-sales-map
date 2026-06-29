@@ -748,19 +748,21 @@ function placeMarkers(type) {
     // 거래처명 라벨 오버레이 (줌 레벨 7 이하에서만 표시)
     const labelEl = document.createElement('div');
     labelEl.style.cssText = `
-      background:rgba(15,17,23,0.8);
+      background:rgba(15,17,23,0.85);
       color:white;
       font-size:10px;
       font-weight:600;
-      padding:2px 5px;
+      padding:2px 6px;
       border-radius:3px;
       white-space:nowrap;
-      pointer-events:none;
       transform:translateX(-50%);
       margin-top:2px;
-      border:1px solid ${color}40;
+      border:1px solid ${color}60;
+      cursor:pointer;
     `;
     labelEl.textContent = item['거래처명'];
+    // 라벨 클릭 시 마커 클릭과 동일하게 처리
+    labelEl.addEventListener('click', () => showIW(marker, item, type));
     const label = new kakao.maps.CustomOverlay({
       position: new kakao.maps.LatLng(lat, lng),
       content: labelEl,
@@ -1092,14 +1094,17 @@ function clearCat() {
 function normName(n) { return String(n||'').replace(/\s+/g,'').trim(); }
 
 // 줌 레벨에 따라 라벨 표시/숨김
+// 모바일: 레벨 9 이하, PC: 레벨 7 이하
 function updateLabels() {
   const level = map.getLevel();
-  const show = level <= 7;
+  const isMobile = window.innerWidth <= 768;
+  const threshold = isMobile ? 9 : 7;
+  const show = level <= threshold;
   if (show === labelsVisible) return;
   labelsVisible = show;
 
   ['active','new','dormant'].forEach(type => {
-    labelOverlays[type].forEach((label, i) => {
+    labelOverlays[type].forEach(label => {
       if (!visible[type]) { label.setMap(null); return; }
       label.setMap(show ? map : null);
     });
