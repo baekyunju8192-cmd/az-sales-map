@@ -370,6 +370,17 @@ if (localStorage.getItem('az_auth') === '1') {
   </div>
 
   <div class="map-wrap">
+    <!-- GPS 버튼 -->
+    <button id="gps-btn" onclick="goToMyLocation()" style="
+      position:absolute;bottom:40px;right:12px;z-index:5;
+      width:40px;height:40px;border-radius:50%;
+      background:white;border:2px solid var(--border);
+      font-size:18px;cursor:pointer;
+      box-shadow:0 2px 8px rgba(0,0,0,.3);
+      display:flex;align-items:center;justify-content:center;">
+      📍
+    </button>
+
     <!-- 지역 선택 바 -->
     <div class="region-bar">
       <div class="region-group" id="rg-gju">
@@ -427,8 +438,9 @@ if (localStorage.getItem('az_auth') === '1') {
       <button class="cat" onclick="searchCat(this,'식당',['샤브샤브','무한리필','기사식당','뷔페','함바'])">🍽️ 식당</button>
       <button class="cat" onclick="searchCat(this,'수산물',['수산물','생선구이'])">🐟 수산물</button>
       <button class="cat" onclick="searchCat(this,'식자재',['식자재마트'])">🛒 식자재</button>
-      <button class="cat" onclick="searchCat(this,'곱창',['곱창','막창'])">🔥 곱창</button>
-      <button class="cat" onclick="searchCat(this,'할랄',['양꼬치','할랄','케밥','타코'])">🌙 할랄</button>
+      <button class="cat" onclick="searchCat(this,'곱창',['곱창','막창'])">🫀 곱창</button>
+      <button class="cat" onclick="searchCat(this,'부산물',['감자탕','등뼈','목뼈','꼬리','순대','머리고기','사골','족발','보쌈'])">🦴 부산물</button>
+      <button class="cat" onclick="searchCat(this,'할랄',['양꼬치','할랄','케밥','타코'])">🐑 할랄</button>
       <button class="cat" style="color:var(--red);border-color:var(--border)" onclick="clearCat()">✕</button>
       <button class="cat" style="color:#f59e0b;border-color:#f59e0b" onclick="toggleAddForm()">✚ 직접 등록</button>
     </div>
@@ -474,6 +486,10 @@ const GID = { active:'0', new:'2043143991', dormant:'1615833992' };
 const COMPANY = { lat:35.2162723, lng:126.8245735, name:'(주)에이젯시스템' };
 const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbz2YnXVi1NROu_24URgvt9vYXs4rnoS6PXYoD1-WOBdvbcJS9LgY5ylKpC-Ho37ByN-VA/exec'; // Apps Script 배포 후 URL 입력
 const COLORS = { active:'#3b82f6', new:'#27ae60', dormant:'#888888', search:'#e84444' };
+const CAT_EMOJI = {
+  '육가공': '🏭', '식당': '🍽️', '수산물': '🐟',
+  '식자재': '🛒', '곱창': '🫀', '부산물': '🦴', '할랄': '🐑', 'default': '📍'
+};
 
 // ── 상태 ──
 let map, ps;
@@ -718,6 +734,19 @@ function placeMarkers(type) {
     markers[type].push(marker);
     item._idx = idx;
     item._hasCoord = true;
+  });
+}
+
+function makeEmojiMarker(lat, lng, emoji, show) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
+    <circle cx="15" cy="15" r="13" fill="white" stroke="#e84444" stroke-width="2"/>
+    <text x="15" y="20" text-anchor="middle" font-size="14">${emoji}</text>
+  </svg>`;
+  const url = URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
+  return new kakao.maps.Marker({
+    position: new kakao.maps.LatLng(lat, lng),
+    map: show ? map : null,
+    image: new kakao.maps.MarkerImage(url, new kakao.maps.Size(30,30),{offset:new kakao.maps.Point(15,15)})
   });
 }
 
@@ -967,7 +996,8 @@ function doSearch(keywords) {
         });
         if (dup) return;
 
-        const m = makeMarker(lat, lng, COLORS.search, visible.search);
+        const emoji = CAT_EMOJI[curCatName] || CAT_EMOJI['default'];
+        const m = makeEmojiMarker(lat, lng, emoji, visible.search);
         // place 정보 저장
         m._place = place;
         m._category = curCatName;
@@ -1021,6 +1051,62 @@ function clearCat() {
 }
 
 function normName(n) { return String(n||'').replace(/\s+/g,'').trim(); }
+
+// ── GPS 현재 위치 ──
+let myLocationMarker = null;
+
+function goToMyLocation() {
+  const btn = document.getElementById('gps-btn');
+  if (!navigator.geolocation) {
+    alert('이 브라우저는 GPS를 지원하지 않습니다.');
+    return;
+  }
+  btn.textContent = '⏳';
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const latlng = new kakao.maps.LatLng(lat, lng);
+
+      // 지도 이동
+      map.setCenter(latlng);
+      map.setLevel(6);
+
+      // 기존 내 위치 마커 제거
+      if (myLocationMarker) myLocationMarker.setMap(null);
+
+      // 내 위치 마커 (파란 원)
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+        <circle cx="10" cy="10" r="8" fill="#3b82f6" stroke="white" stroke-width="2" opacity="0.9"/>
+        <circle cx="10" cy="10" r="3" fill="white"/>
+      </svg>`;
+      const url = URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
+      myLocationMarker = new kakao.maps.Marker({
+        position: latlng, map,
+        image: new kakao.maps.MarkerImage(url, new kakao.maps.Size(20,20),
+          {offset:new kakao.maps.Point(10,10)})
+      });
+
+      // 인포윈도우
+      const iw = new kakao.maps.InfoWindow({
+        content:'<div style="padding:5px 8px;font-size:12px;color:#1a1d27;font-weight:600">📍 내 현재 위치</div>',
+        removable:true
+      });
+      iw.open(map, myLocationMarker);
+
+      // 카테고리 활성화 시 현재 위치 기반 재검색
+      if (curCat) doSearch(curCat);
+
+      btn.textContent = '📍';
+      setTimeout(filterListByBounds, 500);
+    },
+    err => {
+      btn.textContent = '📍';
+      alert('위치를 가져올 수 없습니다.\n위치 권한을 허용해주세요.');
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
 
 function removeSearchSel(idx) {
   searchSelected.splice(idx, 1);
