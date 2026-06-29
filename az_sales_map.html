@@ -894,117 +894,6 @@ function renderList() {
     : '<div class="empty">이 지역 거래처 없음</div>');
 }
 
-// 기존 unselItems 렌더링 제거용 더미
-function _unused() { return unselItems.map((item) => {
-    const i = data[curTab].indexOf(item);
-    const id = `${curTab}_${i}`;
-    const mgr = item['담당자']||'';
-    const date = item['마지막거래일']||'';
-    return `<div class="ci" onclick="toggleSel('${curTab}',${i})">
-      <div class="chk"></div>
-      <div class="ci-info">
-        <div class="ci-name">${item['거래처명']}</div>
-        <div class="ci-addr">${item['주소']||''}</div>
-        ${mgr||date?`<div class="ci-mgr">${mgr}${mgr&&date?' · ':''}${date}</div>`:''}
-      </div>
-      <span class="badge ${bc}">${lb}</span>
-    </div>`;
-  }).join('') : '<div class="empty">이 지역 거래처 없음</div>');
-}
-
-document.getElementById('srch').addEventListener('input', renderList);
-
-// ── 선택 ──
-function toggleSel(type, idx) {
-  const item = data[type][idx];
-  const id = `${type}_${idx}`;
-  item._sid = id;
-  const pos = selected.findIndex(s=>s._sid===id);
-  if (pos>=0) selected.splice(pos,1);
-  else selected.push(item);
-
-  document.getElementById('selcnt').textContent = selected.length;
-  document.getElementById('btnRoute').disabled = !selected.length;
-  renderList();
-  renderRoute();
-
-  // 좌표 있으면 지도 이동
-  const lat = parseFloat(item['위도']);
-  const lng = parseFloat(item['경도']);
-  if (lat && lng) map.panTo(new kakao.maps.LatLng(lat, lng));
-}
-
-function clearSelection() {
-  selected = [];
-  searchSelected = [];
-  document.getElementById('selcnt').textContent = '0';
-  document.getElementById('btnRoute').disabled = true;
-  polylines.forEach(p=>p.setMap(null));
-  polylines = [];
-  document.getElementById('rlist').innerHTML = '';
-  renderList();
-}
-
-function renderRoute() {
-  const el = document.getElementById('rlist');
-  if (!selected.length) { el.innerHTML=''; return; }
-  el.innerHTML = [
-    {name:COMPANY.name, num:'출발', company:true},
-    ...selected.map((s,i)=>({name:s['거래처명'],num:i+1})),
-    {name:COMPANY.name, num:'도착', company:true}
-  ].map(s=>`<div class="rstep">
-    <div class="snum${s.company?' company':''}">${s.num}</div>
-    <div class="sname">${s.name}</div>
-  </div>`).join('');
-}
-
-// ── 경로 ──
-function calcRoute() {
-  const valid = [
-    ...selected.filter(s => parseFloat(s['위도']) && parseFloat(s['경도'])),
-    ...searchSelected.filter(s => s['위도'] && s['경도'])
-  ];
-  if (!valid.length) { alert('선택한 거래처에 좌표 데이터가 없습니다.\nApps Script에서 [📍 좌표 일괄 변환]을 실행해주세요.'); return; }
-
-  polylines.forEach(p=>p.setMap(null));
-  polylines = [];
-
-  const opt = nearestNeighbor(valid);
-  const pts = [
-    new kakao.maps.LatLng(COMPANY.lat, COMPANY.lng),
-    ...opt.map(s=>new kakao.maps.LatLng(parseFloat(s['위도']),parseFloat(s['경도']))),
-    new kakao.maps.LatLng(COMPANY.lat, COMPANY.lng)
-  ];
-
-  const pl = new kakao.maps.Polyline({
-    path:pts, strokeWeight:3, strokeColor:'#5c6ef8',
-    strokeOpacity:.8, strokeStyle:'solid', map
-  });
-  polylines.push(pl);
-
-  const bounds = new kakao.maps.LatLngBounds();
-  pts.forEach(p=>bounds.extend(p));
-  map.setBounds(bounds);
-
-  selected = opt;
-  renderRoute();
-}
-
-function nearestNeighbor(items) {
-  const unvisited = [...items];
-  const result = [];
-  let cur = {위도:COMPANY.lat, 경도:COMPANY.lng};
-  while (unvisited.length) {
-    let minD=Infinity, minI=0;
-    unvisited.forEach((item,i)=>{
-      const d = Math.pow(parseFloat(item['위도'])-parseFloat(cur['위도']),2)+Math.pow(parseFloat(item['경도'])-parseFloat(cur['경도']),2);
-      if(d<minD){minD=d;minI=i;}
-    });
-    cur = unvisited.splice(minI,1)[0];
-    result.push(cur);
-  }
-  return result;
-}
 
 // ── 카테고리 검색 ──
 function searchCat(btn, catName, keywords) {
@@ -1143,6 +1032,56 @@ function toggleSidebar() {
 }
 
 // 지도 마커에서 경로 추가/제거
+// ── 체크박스 선택 ──
+function toggleSel(type, idx) {
+  const item = data[type][idx];
+  const id   = `${type}_${idx}`;
+  item._sid  = id;
+  const pos  = selected.findIndex(s=>s._sid===id);
+  if (pos>=0) selected.splice(pos,1);
+  else selected.push(item);
+
+  const total = selected.length + searchSelected.length;
+  document.getElementById('selcnt').textContent = total;
+  document.getElementById('btnRoute').disabled = total === 0;
+  renderList();
+  renderRoute();
+
+  const lat = parseFloat(item['위도']);
+  const lng = parseFloat(item['경도']);
+  if (lat && lng) map.panTo(new kakao.maps.LatLng(lat, lng));
+}
+
+function clearSelection() {
+  selected = [];
+  searchSelected = [];
+  document.getElementById('selcnt').textContent = '0';
+  document.getElementById('btnRoute').disabled = true;
+  polylines.forEach(p=>p.setMap(null));
+  polylines = [];
+  document.getElementById('rlist').innerHTML = '';
+  const existing = document.getElementById('btn-kakao-nav');
+  if (existing) existing.remove();
+  renderList();
+}
+
+function renderRoute() {
+  const el = document.getElementById('rlist');
+  const allSel = [
+    ...selected,
+    ...searchSelected.map(s=>({...s, 거래처명:s['거래처명']}))
+  ];
+  if (!allSel.length) { el.innerHTML=''; return; }
+  el.innerHTML = [
+    {name:COMPANY.name, num:'출발', company:true},
+    ...allSel.map((s,i)=>({name:s['거래처명'],num:i+1})),
+    {name:COMPANY.name, num:'도착', company:true}
+  ].map(s=>`<div class="rstep">
+    <div class="snum${s.company?' company':''}">${s.num}</div>
+    <div class="sname">${s.name}</div>
+  </div>`).join('');
+}
+
 function toggleSelFromMap(type, idx) {
   toggleSel(type, idx);
   // 버튼 상태 업데이트
@@ -1417,6 +1356,56 @@ function closeOverlay() {
 }
 
 // ── 파란 마커 경로 추가 ──
+// ── 경로 계산 ──
+function calcRoute() {
+  const valid = [
+    ...selected.filter(s => parseFloat(s['위도']) && parseFloat(s['경도'])),
+    ...searchSelected.filter(s => parseFloat(s['위도']) && parseFloat(s['경도']))
+  ];
+  if (!valid.length) { alert('선택한 거래처에 좌표 데이터가 없습니다.\nApps Script에서 [📍 좌표 일괄 변환]을 실행해주세요.'); return; }
+
+  polylines.forEach(p=>p.setMap(null));
+  polylines = [];
+
+  const opt = nearestNeighbor(valid);
+  const pts = [
+    new kakao.maps.LatLng(COMPANY.lat, COMPANY.lng),
+    ...opt.map(s=>new kakao.maps.LatLng(parseFloat(s['위도']),parseFloat(s['경도']))),
+    new kakao.maps.LatLng(COMPANY.lat, COMPANY.lng)
+  ];
+
+  const pl = new kakao.maps.Polyline({
+    path:pts, strokeWeight:3, strokeColor:'#5c6ef8',
+    strokeOpacity:.8, strokeStyle:'solid', map
+  });
+  polylines.push(pl);
+
+  const bounds = new kakao.maps.LatLngBounds();
+  pts.forEach(p=>bounds.extend(p));
+  map.setBounds(bounds);
+
+  selected = opt.filter(s => s._sid);
+  searchSelected = opt.filter(s => s._pid);
+  renderRoute();
+}
+
+function nearestNeighbor(items) {
+  const unvisited = [...items];
+  const result = [];
+  let cur = {위도:COMPANY.lat, 경도:COMPANY.lng};
+  while (unvisited.length) {
+    let minD=Infinity, minI=0;
+    unvisited.forEach((item,i)=>{
+      const d = Math.pow(parseFloat(item['위도'])-parseFloat(cur['위도']),2)
+               +Math.pow(parseFloat(item['경도'])-parseFloat(cur['경도']),2);
+      if(d<minD){minD=d;minI=i;}
+    });
+    cur = unvisited.splice(minI,1)[0];
+    result.push(cur);
+  }
+  return result;
+}
+
 function addToRoute(pid) {
   if (!window._curPlace || window._curPlace.pid !== pid) return;
   const p = window._curPlace;
