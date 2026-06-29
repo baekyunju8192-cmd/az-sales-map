@@ -1893,11 +1893,12 @@ function buildProspectIW(name, addr, cat, lat, lng, isRegistered, visitedIn, mem
 }
 
 // 모바일용 신규영업처 팝업
-function buildProspectIW_mobile(name, addr, cat, lat, lng, isRegistered, visitedIn, memoIn, openHours) {
+function buildProspectIW_mobile(name, addr, cat, lat, lng, isRegistered, visitedIn, memoIn, openHours, phone) {
   const nameE = name.replace(/'/g,"\'").replace(/"/g,'&quot;');
   const addrE = addr.replace(/'/g,"\'").replace(/"/g,'&quot;');
   const catE  = cat.replace(/'/g,"\'");
   const hoursHtml = openHours ? `<div style="font-size:12px;color:#7b82a0;margin-top:4px">⏰ ${openHours}</div>` : '';
+  const phoneHtml = phone ? `<div style="font-size:12px;color:#7b82a0;margin-top:4px;display:flex;align-items:center;gap:6px">📞 ${phone}<a href="tel:${phone}" style="margin-left:auto;padding:4px 10px;background:#27ae60;border-radius:6px;color:white;font-size:11px;font-weight:600;text-decoration:none">전화</a></div>` : '';
   const tMapUrl = `tmap://route?goalname=${encodeURIComponent(name)}&goaly=${lat}&goalx=${lng}`;
   const tMapWebUrl = `https://tmap.life/${lat},${lng}`;
 
@@ -1906,6 +1907,7 @@ function buildProspectIW_mobile(name, addr, cat, lat, lng, isRegistered, visited
     <div style="font-size:12px;color:#7b82a0;margin-bottom:4px;line-height:1.4">${addr}</div>
     <span style="font-size:11px;background:rgba(232,68,68,.15);color:#e84444;padding:2px 8px;border-radius:4px">${cat||'신규영업처'}</span>
     ${hoursHtml}
+    ${phoneHtml}
     ${isRegistered && visitedIn ? '<div style="font-size:12px;color:#27ae60;margin-top:4px">✅ 방문완료</div>' : ''}
     ${isRegistered && memoIn ? `<div style="font-size:11px;color:#7b82a0;margin-top:4px">📝 ${memoIn}</div>` : ''}
     <div style="display:flex;gap:6px;margin-top:12px">
@@ -2557,7 +2559,8 @@ function mDoSearch2(keywords) {
             if(mCurIW2){try{mCurIW2.close();}catch(e){try{mCurIW2.setMap(null);}catch(e2){}} mCurIW2=null;}
             var addr2 = pl.road_address_name||pl.address_name;
             var hours2 = pl.opening_hours||'';
-            var content = buildProspectIW_mobile(pl.place_name, addr2, mCurCatName2, plLat, plLng, false, false, '', hours2);
+            var phone2 = pl.phone||'';
+            var content = buildProspectIW_mobile(pl.place_name, addr2, mCurCatName2, plLat, plLng, false, false, '', hours2, phone2);
             mCurIW2 = new kakao.maps.InfoWindow({content:content, removable:true});
             mCurIW2.open(mMap2, m);
           });
@@ -2617,7 +2620,9 @@ async function mLoadProspectMarkers2() {
           var cat3 = it['카테고리']||'신규영업처';
           var vis3 = it['방문여부']===true||it['방문여부']==='TRUE';
           var mem3 = it['메모']||'';
-          var content3 = buildProspectIW_mobile(it['업체명']||'', it['주소']||'', cat3, iLat2, iLng2, true, vis3, mem3, '');
+          var hours3 = it['영업시간']||'';
+          var phone3 = it['전화번호']||'';
+          var content3 = buildProspectIW_mobile(it['업체명']||'', it['주소']||'', cat3, iLat2, iLng2, true, vis3, mem3, hours3, phone3);
           mCurIW2=new kakao.maps.InfoWindow({content:content3,removable:true});
           mCurIW2.open(mMap2,m);
         });
