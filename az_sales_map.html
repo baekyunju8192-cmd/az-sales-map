@@ -798,19 +798,35 @@ function switchTab(t) {
 // ── 목록 렌더링 ──
 function renderList() {
   const q = document.getElementById('srch').value.toLowerCase();
-  // 검색어 있으면 전체 검색, 없으면 현재 지도 영역만
   const myName = window.AZ_USER || localStorage.getItem('az_user') || '';
-  
-  const allItems = data[curTab].filter(r => {
-    const nameMatch = !q || r['거래처명'].toLowerCase().includes(q);
-    if (q) return nameMatch; // 검색어 있으면 지역 필터 무시
-    return nameMatch && r._inBounds !== false; // 지역 필터 적용
-  });
 
-  // bounds 필터된 결과 안에서 내 담당 우선 정렬
-  const myItems    = myName ? allItems.filter(r => (r['담당자']||'').includes(myName)) : [];
-  const otherItems = myName ? allItems.filter(r => !(r['담당자']||'').includes(myName)) : allItems;
-  const items = [...myItems, ...otherItems];
+  // 전체 데이터에서 우선순위 정렬
+  // ① 검색어 매칭 전체
+  // ② 현재 지역 + 내 담당
+  // ③ 현재 지역 + 타 담당
+  // ④ 타지역 + 내 담당
+  // ⑤ 나머지 전체
+  const all = data[curTab];
+  
+  const isMatch  = r => !q || (r['거래처명']||'').toLowerCase().includes(q);
+  const isInBounds = r => r._inBounds !== false;
+  const isMine   = r => myName && (r['담당자']||'').includes(myName);
+
+  let items;
+  if (q) {
+    // 검색어 있으면: 매칭 전체 표시 (지역/담당 무관), 내 담당 먼저
+    const matched = all.filter(isMatch);
+    const myMatched    = matched.filter(isMine);
+    const otherMatched = matched.filter(r => !isMine(r));
+    items = [...myMatched, ...otherMatched];
+  } else {
+    // 검색어 없으면: 우선순위대로
+    const g1 = all.filter(r => isInBounds(r) && isMine(r));   // 지역내 내담당
+    const g2 = all.filter(r => isInBounds(r) && !isMine(r));  // 지역내 타담당
+    const g3 = all.filter(r => !isInBounds(r) && isMine(r));  // 타지역 내담당
+    const g4 = all.filter(r => !isInBounds(r) && !isMine(r)); // 타지역 타담당
+    items = [...g1, ...g2, ...g3, ...g4];
+  }
   const el = document.getElementById('clist');
 
   if (!items.length) { el.innerHTML='<div class="empty">검색 결과 없음</div>'; return; }
@@ -862,14 +878,14 @@ function renderList() {
     return !selected.some(s=>s._sid===id);
   });
 
-  // 내 담당 / 다른 담당 구분선
-  const myName2 = window.AZ_USER || localStorage.getItem('az_user') || '';
-  const myUnsel = unselItems.filter(r => myName2 && (r['담당자']||'').includes(myName2));
-  const otherUnsel = unselItems.filter(r => !myName2 || !(r['담당자']||'').includes(myName2));
-  
-  const myLabel = myUnsel.length && myName2 ? 
+  // 구분선 (검색어 없을 때만)
+  const myName2 = myName;
+  const myUnsel = !q ? unselItems.filter(r => myName2 && (r['담당자']||'').includes(myName2)) : [];
+  const otherUnsel = !q ? unselItems.filter(r => !myName2 || !(r['담당자']||'').includes(myName2)) : unselItems;
+
+  const myLabel = !q && myUnsel.length && myName2 ?
     `<div style="padding:3px 12px;font-size:9px;font-weight:600;color:var(--accent);letter-spacing:.5px">⭐ 내 담당 거래처</div>` : '';
-  const otherLabel = otherUnsel.length && myUnsel.length && myName2 ?
+  const otherLabel = !q && otherUnsel.length && myUnsel.length && myName2 ?
     `<div style="padding:3px 12px;font-size:9px;font-weight:600;color:var(--muted);letter-spacing:.5px;border-top:1px solid var(--border);margin-top:2px">기타 거래처</div>` : '';
 
   const renderItem = (item) => {
@@ -889,10 +905,11 @@ function renderList() {
     </div>`;
   };
 
-  el.innerHTML = searchSelHtml + selHtml + (unselItems.length ? 
-    myLabel + myUnsel.map(renderItem).join('') +
-    otherLabel + otherUnsel.map(renderItem).join('')
-    : '<div class="empty">이 지역 거래처 없음</div>');
+  const bodyHtml = q 
+    ? unselItems.map(renderItem).join('')  // 검색어: 그냥 순서대로
+    : myLabel + myUnsel.map(renderItem).join('') + otherLabel + otherUnsel.map(renderItem).join('');
+
+  el.innerHTML = searchSelHtml + selHtml + (unselItems.length ? bodyHtml : '<div class="empty">거래처 없음</div>');
 }
 
 
@@ -1073,14 +1090,41 @@ function renderRoute() {
     ...searchSelected.map(s=>({...s, 거래처명:s['거래처명']}))
   ];
   if (!allSel.length) { el.innerHTML=''; return; }
-  el.innerHTML = [
-    {name:COMPANY.name, num:'출발', company:true},
-    ...allSel.map((s,i)=>({name:s['거래처명'],num:i+1})),
-    {name:COMPANY.name, num:'도착', company:true}
-  ].map(s=>`<div class="rstep">
-    <div class="snum${s.company?' company':''}">${s.num}</div>
-    <div class="sname">${s.name}</div>
-  </div>`).join('');
+
+  el.innerHTML = allSel.map((s,i) => `
+    <div class="rstep" id="rstep-${i}">
+      <div class="snum">${i+1}</div>
+      <div class="sname">${s['거래처명']}</div>
+      <div style="display:flex;flex-direction:column;gap:1px;margin-left:auto">
+        <button onclick="moveRoute(${i},-1)" style="
+          background:none;border:1px solid var(--border);border-radius:3px;
+          color:var(--muted);cursor:pointer;padding:0 5px;font-size:10px;line-height:16px"
+          ${i===0?'disabled':''}>▲</button>
+        <button onclick="moveRoute(${i},1)" style="
+          background:none;border:1px solid var(--border);border-radius:3px;
+          color:var(--muted);cursor:pointer;padding:0 5px;font-size:10px;line-height:16px"
+          ${i===allSel.length-1?'disabled':''}>▼</button>
+      </div>
+    </div>`).join('');
+}
+
+function moveRoute(idx, dir) {
+  const allSel = [
+    ...selected,
+    ...searchSelected
+  ];
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= allSel.length) return;
+
+  // selected와 searchSelected 합쳐서 순서 변경
+  const merged = [...selected.map(s=>({...s,_src:'sel'})),
+                  ...searchSelected.map(s=>({...s,_src:'search'}))];
+  [merged[idx], merged[newIdx]] = [merged[newIdx], merged[idx]];
+
+  selected = merged.filter(s=>s._src==='sel').map(({_src,...rest})=>rest);
+  searchSelected = merged.filter(s=>s._src==='search').map(({_src,...rest})=>rest);
+
+  renderRoute();
 }
 
 function toggleSelFromMap(type, idx) {
@@ -1370,9 +1414,7 @@ function calcRoute() {
 
   const opt = nearestNeighbor(valid);
   const pts = [
-    new kakao.maps.LatLng(COMPANY.lat, COMPANY.lng),
-    ...opt.map(s=>new kakao.maps.LatLng(parseFloat(s['위도']),parseFloat(s['경도']))),
-    new kakao.maps.LatLng(COMPANY.lat, COMPANY.lng)
+    ...opt.map(s=>new kakao.maps.LatLng(parseFloat(s['위도']),parseFloat(s['경도'])))
   ];
 
   const pl = new kakao.maps.Polyline({
