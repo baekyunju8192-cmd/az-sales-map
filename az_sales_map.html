@@ -1102,12 +1102,13 @@ function clearCat() {
 function normName(n) { return String(n||'').replace(/\s+/g,'').trim(); }
 
 // 줌 레벨에 따라 라벨 표시/숨김
-// 모바일: 레벨 9 이하, PC: 레벨 7 이하
+// 모바일: 라벨 끔, PC: 레벨 7 이하
 function updateLabels() {
-  const level = map.getLevel();
   const isMobile = window.innerWidth <= 768;
-  const threshold = isMobile ? 9 : 7;
-  const show = level <= threshold;
+  if (isMobile) return; // 모바일은 라벨 사용 안 함
+
+  const level = map.getLevel();
+  const show = level <= 7;
   if (show === labelsVisible) return;
   labelsVisible = show;
 
