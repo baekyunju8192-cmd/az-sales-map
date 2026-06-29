@@ -561,6 +561,9 @@ window.onload = async () => {
 
   await loadAll();
   document.getElementById('loading').classList.add('hide');
+
+  // 검색창 이벤트 리스너
+  document.getElementById('srch').addEventListener('input', renderList);
 };
 
 // ── 데이터 로드 ──
