@@ -124,22 +124,88 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
 .load-txt { font-size:12px; color:var(--muted); }
 
 @media (max-width: 768px) {
-  .sidebar { width:100% !important; max-width:100%; position:fixed; bottom:0; left:0; z-index:8;
-    height:45vh; border-right:none; border-top:1px solid var(--border); flex-shrink:0; }
-  .map-wrap { height:55vh; }
-  .main { flex-direction:column; }
-  #sidebar-toggle { display:none; }
-  .cat-bar { top:8px; padding:4px 6px; gap:4px; }
-  .cat { padding:4px 8px; font-size:11px; }
-  .region-bar { top:50px; }
+  body { overflow:hidden; }
+  header { 
+    height:40px; padding:0 8px; gap:6px; flex-wrap:nowrap;
+    overflow-x:auto; overflow-y:hidden;
+  }
+  header::-webkit-scrollbar { display:none; }
+  .logo { font-size:13px; flex-shrink:0; }
+  .hdiv { display:none; }
+  .legend { gap:5px; flex-shrink:0; }
+  .leg { font-size:9px; padding:2px 4px; }
+  .hright { font-size:9px; flex-shrink:0; white-space:nowrap; }
+
+  .main { flex-direction:column; height:calc(100vh - 40px); }
+
+  /* 지도 영역 */
+  .map-wrap { height:52vh; flex-shrink:0; position:relative; }
+  #map { height:100%; }
+
+  /* 카테고리 버튼 - 가로 스크롤 */
+  .cat-bar {
+    top:8px; left:50%; transform:translateX(-50%);
+    flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden;
+    max-width:calc(100% - 16px);
+    padding:4px 6px; gap:4px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .cat-bar::-webkit-scrollbar { display:none; }
+  .cat { padding:4px 8px; font-size:11px; flex-shrink:0; }
+
+  /* 지역 버튼 */
+  .region-bar { top:48px; gap:4px; }
   .region-btn { font-size:11px; padding:4px 10px; }
-  .cust-name { font-size:13px; }
-  .cust-addr { font-size:11px; }
-  .btn-route { padding:10px; font-size:14px; }
-  header { height:44px; padding:0 10px; gap:8px; }
-  .logo { font-size:14px; }
-  .legend { gap:8px; }
-  .leg { font-size:10px; padding:2px 5px; }
+  .region-dropdown { max-height:200px; }
+
+  /* 직접등록 폼 */
+  #add-form { width:calc(100% - 32px); top:100px; }
+
+  /* 사이드패널 - 하단 슬라이드 */
+  .sidebar {
+    width:100% !important;
+    height:48vh;
+    border-right:none;
+    border-top:2px solid var(--border);
+    flex-shrink:0;
+    overflow:hidden;
+  }
+  #sidebar-toggle { display:none; }
+
+  /* 사이드패널 내부 */
+  .sb-sec { padding:6px 10px; }
+  .sec-label { font-size:9px; margin-bottom:5px; }
+  .srch input { font-size:13px; padding:6px 8px 6px 26px; }
+
+  .tabs { gap:3px; margin-bottom:5px; }
+  .tab { font-size:11px; padding:5px 0; }
+
+  .clist { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .ci { padding:7px 10px; }
+  .ci-name { font-size:13px; }
+  .ci-addr { font-size:11px; }
+  .ci-mgr { font-size:10px; }
+
+  /* 경로 섹션 */
+  .route-sec { padding:8px 10px; flex-shrink:0; }
+  .sel-cnt { font-size:11px; margin-bottom:5px; }
+  .btn-route { padding:10px; font-size:14px; font-weight:700; }
+  .btn-clear { padding:7px; font-size:12px; }
+  .rlist { max-height:80px; }
+
+  /* 인포윈도우 */
+  .iw { min-width:200px; max-width:260px; }
+  .iw-name { font-size:14px; }
+
+  /* TOP5 모바일 숨김 */
+  .iw-top5 { display:none !important; }
+
+  /* 영업계획 패널 모바일 */
+  #plan-panel {
+    width:100% !important;
+    border-radius:12px 12px 0 0 !important;
+    max-height:50vh !important;
+  }
 }
 </style>
 </head>
@@ -213,8 +279,8 @@ function checkLogin() {
 
   err.style.display='none';
   document.getElementById('auth-overlay').style.display='none';
-  sessionStorage.setItem('az_auth', '1');
-  sessionStorage.setItem('az_user', id);
+  localStorage.setItem('az_auth', '1');
+  localStorage.setItem('az_user', id);
   window.AZ_USER = id;
 
   // 헤더에 사원명 표시
@@ -222,9 +288,9 @@ function checkLogin() {
 }
 
 // 세션 유지
-if (sessionStorage.getItem('az_auth') === '1') {
+if (localStorage.getItem('az_auth') === '1') {
   document.getElementById('auth-overlay').style.display='none';
-  window.AZ_USER = sessionStorage.getItem('az_user');
+  window.AZ_USER = localStorage.getItem('az_user');
 }
 </script>
 
@@ -392,7 +458,7 @@ if (sessionStorage.getItem('az_auth') === '1') {
 const SS_ID = '1mIXExxFRuZmcy7VKEe_w63Yu1QOqT5r8qondm4k91-c';
 const GID = { active:'0', new:'2043143991', dormant:'1615833992' };
 const COMPANY = { lat:35.2162723, lng:126.8245735, name:'(주)에이젯시스템' };
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwIAJt4PUBCp0jfZaggvCcYQ2z3WCZi6crcOQkG5xZbE_K5D4vUBXvRSsHhx61SGgHg/exec'; // Apps Script 배포 후 URL 입력
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbz2YnXVi1NROu_24URgvt9vYXs4rnoS6PXYoD1-WOBdvbcJS9LgY5ylKpC-Ho37ByN-VA/exec'; // Apps Script 배포 후 URL 입력
 const COLORS = { active:'#3b82f6', new:'#27ae60', dormant:'#888888', search:'#e84444' };
 
 // ── 상태 ──
@@ -495,11 +561,14 @@ async function loadAll() {
 
   const total = data.active.length + data.new.length + data.dormant.length;
   const withCoord = markers.active.length + markers.new.length + markers.dormant.length;
-  const userName = window.AZ_USER || sessionStorage.getItem('az_user') || '';
+  const userName = window.AZ_USER || localStorage.getItem('az_user') || '';
   document.getElementById('hstatus').textContent =
     `${userName ? userName+' 님 | ' : ''}기존 ${data.active.length} · 신규 ${data.new.length} · 휴면 ${data.dormant.length}`;
 
-  renderList();
+  // 신규영업처 시트 데이터 지도에 표시
+  loadProspectMarkers();
+
+  filterListByBounds();
 }
 
 function setLoadTxt(t) { document.getElementById('loadtxt').textContent = t; }
@@ -555,6 +624,74 @@ function splitLine(line) {
 }
 
 // ── 마커 표시 (좌표 컬럼 기반) ──
+// 신규영업처 시트 → 지도 마커
+async function loadProspectMarkers() {
+  try {
+    const res = await fetch(WEBAPP_URL + '?action=getProspects');
+    const json = await res.json();
+    if (!json.success || !json.data.length) return;
+
+    json.data.forEach(item => {
+      const lat = parseFloat(item['위도']);
+      const lng = parseFloat(item['경도']);
+      if (!lat || !lng) return;
+
+      // 등록된 신규영업처 - 주황 테두리 빨간 마커
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><circle cx="8" cy="8" r="6" fill="#e84444" stroke="#f59e0b" stroke-width="2"/></svg>`;
+      const url = URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
+      const m = new kakao.maps.Marker({
+        position: new kakao.maps.LatLng(lat, lng),
+        map: visible.search ? map : null,
+        image: new kakao.maps.MarkerImage(url, new kakao.maps.Size(16,16), {offset:new kakao.maps.Point(8,8)})
+      });
+
+      kakao.maps.event.addListener(m, 'click', () => {
+        if(curIW) { try{curIW.close();}catch(e){curIW.setMap(null);} curIW=null; }
+        const cat = item['카테고리']||'신규영업처';
+        const visited = item['방문여부'];
+        const result = item['결과']||'';
+        const memo = item['메모']||'';
+        const c = `<div class="iw">
+          <div class="iw-name">${item['업체명']}</div>
+          <div class="iw-addr">${item['주소']||''}</div>
+          <div class="iw-row">
+            <span class="iw-badge" style="background:rgba(232,68,68,.15);color:#e84444">${cat}</span>
+            ${result?`<span class="iw-mgr">· ${result}</span>`:''}
+            ${visited?'<span class="iw-mgr" style="color:#27ae60">· ✓방문완료</span>':''}
+          </div>
+          ${memo?`<div class="iw-addr" style="margin-top:4px">📝 ${memo}</div>`:''}
+          <div style="margin-top:8px">
+            <button onclick="addSearchMarkerToPlan('${item['업체명'].replace(/'/g,"\'")}','${(item['주소']||'').replace(/'/g,"\'")}',${lat},${lng})"
+              style="width:100%;padding:5px;background:#5c6ef8;border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer">
+              📍 경로 추가
+            </button>
+          </div>
+        </div>`;
+        curIW = new kakao.maps.InfoWindow({content:c, removable:true});
+        curIW.open(map, m);
+      });
+      markers.search.push(m);
+    });
+  } catch(e) {
+    console.log('신규영업처 로드 실패:', e);
+  }
+}
+
+function addSearchMarkerToPlan(name, addr, lat, lng) {
+  const pid = 'prospect_'+Math.random().toString(36).substr(2,6);
+  searchSelected.push({
+    거래처명: name, 주소: addr,
+    위도: lat, 경도: lng,
+    _pid: pid, _type: '신규영업처'
+  });
+  const total = selected.length + searchSelected.length;
+  document.getElementById('selcnt').textContent = total;
+  document.getElementById('btnRoute').disabled = false;
+  renderList();
+  renderRoute();
+  if(curIW) { try{curIW.close();}catch(e){curIW.setMap(null);} curIW=null; }
+}
+
 function placeMarkers(type) {
   const color = COLORS[type];
   data[type].forEach((item, idx) => {
@@ -662,6 +799,22 @@ function renderList() {
 
   // 선택된 거래처 상단 고정
   const selItems = selected.filter(s => s._sid && s._sid.startsWith(curTab));
+  
+  // searchSelected도 상단에 표시
+  const searchSelHtml = searchSelected.length && curTab === 'active' ? `
+    <div style="padding:4px 12px;font-size:10px;color:#e84444;font-weight:600;letter-spacing:.5px">
+      🔴 카테고리 선택 ${searchSelected.length}개
+    </div>` + searchSelected.map((item, i) => {
+      return `<div class="ci sel" onclick="removeSearchSel(${i})">
+        <div class="chk" style="background:#e84444;border-color:#e84444"></div>
+        <div class="ci-info">
+          <div class="ci-name">${item['거래처명']}</div>
+          <div class="ci-addr">${item['주소']||''}</div>
+        </div>
+        <span class="badge" style="background:rgba(232,68,68,.15);color:#e84444">검색</span>
+      </div>`;
+    }).join('') + `<div style="height:1px;background:var(--border);margin:4px 0"></div>` : '';
+
   const selHtml = selItems.length ? `
     <div style="padding:4px 12px;font-size:10px;color:var(--accent);font-weight:600;letter-spacing:.5px">
       ✅ 선택됨 ${selItems.length}개
@@ -688,7 +841,7 @@ function renderList() {
     return !selected.some(s=>s._sid===id);
   });
 
-  el.innerHTML = selHtml + (unselItems.length ? unselItems.map((item) => {
+  el.innerHTML = searchSelHtml + selHtml + (unselItems.length ? unselItems.map((item) => {
     const i = data[curTab].indexOf(item);
     const id = `${curTab}_${i}`;
     const mgr = item['담당자']||'';
@@ -908,6 +1061,15 @@ function clearCat() {
 
 function normName(n) { return String(n||'').replace(/\s+/g,'').trim(); }
 
+function removeSearchSel(idx) {
+  searchSelected.splice(idx, 1);
+  const total = selected.length + searchSelected.length;
+  document.getElementById('selcnt').textContent = total;
+  document.getElementById('btnRoute').disabled = total === 0;
+  renderList();
+  renderRoute();
+}
+
 // 사이드패널 토글
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
@@ -941,7 +1103,7 @@ function toggleSelFromMap(type, idx) {
 
 // ── 영업계획 저장/불러오기 ──
 async function savePlan() {
-  const user = window.AZ_USER || sessionStorage.getItem('az_user');
+  const user = window.AZ_USER || localStorage.getItem('az_user');
   if (!user) { alert('로그인이 필요합니다.'); return; }
 
   const allSel = [
@@ -952,19 +1114,19 @@ async function savePlan() {
   if (!allSel.length) { alert('선택된 거래처가 없습니다.'); return; }
 
   try {
-    const res = await fetch(WEBAPP_URL, {
+    await fetch(WEBAPP_URL, {
       method:'POST',
       mode:'no-cors',
       body: JSON.stringify({ action:'savePlan', user, items:allSel })
     });
-    alert('영업계획 저장 완료');
+    alert(`영업계획 저장 완료 (${allSel.length}건)\n잠시 후 불러오기로 확인하세요.`);
   } catch(e) {
     alert('저장 실패: ' + e.message);
   }
 }
 
 async function loadPlan() {
-  const user = window.AZ_USER || sessionStorage.getItem('az_user');
+  const user = window.AZ_USER || localStorage.getItem('az_user');
   if (!user) { alert('로그인이 필요합니다.'); return; }
 
   try {
@@ -975,6 +1137,10 @@ async function loadPlan() {
     // 기존 선택 초기화
     selected = []; searchSelected = [];
 
+    // 완료/미완료 분리
+    const done = json.data.filter(r => r['방문완료'] === true || r['방문완료'] === 'TRUE');
+    const todo = json.data.filter(r => r['방문완료'] !== true && r['방문완료'] !== 'TRUE');
+
     // 불러온 거래처 매칭
     json.data.forEach(item => {
       const name = item['거래처명'];
@@ -984,13 +1150,14 @@ async function loadPlan() {
         if (idx >= 0) {
           const d = data[type][idx];
           d._sid = type+'_'+idx;
+          d._visited = item['방문완료'] === true || item['방문완료'] === 'TRUE';
           selected.push(d);
         }
       } else {
-        // 신규영업처는 searchSelected에
         searchSelected.push({
           거래처명: name, 주소: item['주소'],
-          위도: '', 경도: '', _pid: 'plan_'+Math.random().toString(36).substr(2,6)
+          위도: '', 경도: '', _pid: 'plan_'+Math.random().toString(36).substr(2,6),
+          _visited: item['방문완료'] === true || item['방문완료'] === 'TRUE'
         });
       }
     });
@@ -998,11 +1165,142 @@ async function loadPlan() {
     document.getElementById('selcnt').textContent = selected.length + searchSelected.length;
     document.getElementById('btnRoute').disabled = false;
     renderList();
-    renderRoute();
-    alert(`영업계획 불러오기 완료 (${json.data.length}건)`);
+    showPlanPanel(json.data, user);
+    
   } catch(e) {
     alert('불러오기 실패: ' + e.message);
   }
+}
+
+// 영업계획 패널 표시 (방문완료 체크)
+function showPlanPanel(items, user) {
+  // 기존 패널 제거
+  const existing = document.getElementById('plan-panel');
+  if (existing) existing.remove();
+
+  const done = items.filter(r => r['방문완료'] === true || r['방문완료'] === 'TRUE').length;
+  const total = items.length;
+
+  const panel = document.createElement('div');
+  panel.id = 'plan-panel';
+  panel.style.cssText = `
+    position:fixed; bottom:0; right:0; z-index:15;
+    width:280px; max-height:60vh;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px 12px 0 0; box-shadow:0 -4px 20px rgba(0,0,0,.4);
+    display:flex; flex-direction:column; overflow:hidden;
+  `;
+
+  panel.innerHTML = `
+    <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text)">📋 오늘 영업계획</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${done}/${total} 완료</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <div style="background:var(--surface2);border-radius:20px;height:6px;width:80px;overflow:hidden">
+          <div style="background:#27ae60;height:100%;width:${total?Math.round(done/total*100):0}%;transition:width .3s"></div>
+        </div>
+        <button onclick="document.getElementById('plan-panel').remove()" 
+          style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px">✕</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border)">
+      <button onclick="filterPlan('all')" id="plan-filter-all"
+        style="flex:1;padding:4px;background:var(--accent);border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer">전체</button>
+      <button onclick="filterPlan('todo')" id="plan-filter-todo"
+        style="flex:1;padding:4px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--muted);font-size:11px;cursor:pointer">미완료</button>
+    </div>
+    <div id="plan-list" style="overflow-y:auto;flex:1;padding:4px 0">
+      ${items.map((item,i) => {
+        const visited = item['방문완료'] === true || item['방문완료'] === 'TRUE';
+        return `<div class="plan-item" data-visited="${visited}" style="
+          display:flex;align-items:center;gap:8px;padding:8px 14px;
+          border-bottom:1px solid var(--border);cursor:pointer;
+          opacity:${visited?'0.5':'1'};transition:opacity .2s"
+          onclick="toggleVisit('${item['거래처명'].replace(/'/g,"\'")}','${user}',${i})">
+          <div style="
+            width:18px;height:18px;border-radius:50%;flex-shrink:0;
+            border:2px solid ${visited?'#27ae60':'var(--border)'};
+            background:${visited?'#27ae60':'transparent'};
+            display:flex;align-items:center;justify-content:center;
+            font-size:10px;color:white">
+            ${visited?'✓':''}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:${visited?'400':'600'};color:var(--text);
+              text-decoration:${visited?'line-through':'none'};
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              ${item['No']}. ${item['거래처명']}
+            </div>
+            <div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              ${item['주소']||''}
+            </div>
+          </div>
+          <span style="font-size:9px;padding:2px 5px;border-radius:3px;flex-shrink:0;
+            background:${item['유형']==='기존'?'rgba(59,130,246,.15)':item['유형']==='신규'?'rgba(39,174,96,.15)':'rgba(136,136,136,.15)'};
+            color:${item['유형']==='기존'?'#3b82f6':item['유형']==='신규'?'#27ae60':'#888'}">
+            ${item['유형']||'기타'}
+          </span>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+
+  document.body.appendChild(panel);
+}
+
+function filterPlan(type) {
+  const items = document.querySelectorAll('.plan-item');
+  items.forEach(item => {
+    const visited = item.dataset.visited === 'true';
+    if (type === 'todo') {
+      item.style.display = visited ? 'none' : 'flex';
+    } else {
+      item.style.display = 'flex';
+    }
+  });
+  document.getElementById('plan-filter-all').style.background = type==='all' ? 'var(--accent)' : 'var(--surface2)';
+  document.getElementById('plan-filter-all').style.color = type==='all' ? 'white' : 'var(--muted)';
+  document.getElementById('plan-filter-todo').style.background = type==='todo' ? 'var(--accent)' : 'var(--surface2)';
+  document.getElementById('plan-filter-todo').style.color = type==='todo' ? 'white' : 'var(--muted)';
+}
+
+async function toggleVisit(name, user, idx) {
+  const items = document.querySelectorAll('.plan-item');
+  const item = items[idx];
+  const wasVisited = item.dataset.visited === 'true';
+  const newVisited = !wasVisited;
+
+  // UI 즉시 업데이트
+  item.dataset.visited = newVisited;
+  item.style.opacity = newVisited ? '0.5' : '1';
+  const circle = item.querySelector('div > div');
+  circle.style.border = `2px solid ${newVisited?'#27ae60':'var(--border)'}`;
+  circle.style.background = newVisited ? '#27ae60' : 'transparent';
+  circle.textContent = newVisited ? '✓' : '';
+  const nameEl = item.querySelector('div:nth-child(2) div:first-child');
+  nameEl.style.textDecoration = newVisited ? 'line-through' : 'none';
+  nameEl.style.fontWeight = newVisited ? '400' : '600';
+
+  // 진행률 업데이트
+  const allItems = document.querySelectorAll('.plan-item');
+  const done = [...allItems].filter(i => i.dataset.visited === 'true').length;
+  const total = allItems.length;
+  const panel = document.getElementById('plan-panel');
+  if (panel) {
+    panel.querySelector('div > div > div:last-child').textContent = done+'/'+total+' 완료';
+    const bar = panel.querySelector('div[style*="background:#27ae60"]');
+    if (bar) bar.style.width = (total?Math.round(done/total*100):0)+'%';
+  }
+
+  // 구글시트 업데이트
+  try {
+    await fetch(WEBAPP_URL, {
+      method:'POST', mode:'no-cors',
+      body: JSON.stringify({ action:'updateVisit', user, name, visited:newVisited })
+    });
+  } catch(e) { console.error('방문완료 업데이트 실패:', e); }
 }
 
 // ── 직접 발굴 거래처 등록 ──
@@ -1015,7 +1313,7 @@ async function submitAddForm() {
   const name = document.getElementById('form-name').value.trim();
   const addr = document.getElementById('form-addr').value.trim();
   const cat  = document.getElementById('form-cat').value;
-  const user = window.AZ_USER || sessionStorage.getItem('az_user') || 'AZ';
+  const user = window.AZ_USER || localStorage.getItem('az_user') || 'AZ';
 
   if (!name || !addr) { alert('업체명과 주소를 입력해주세요.'); return; }
 
@@ -1099,7 +1397,7 @@ async function registerProspect(name, addr, cat, lat, lng) {
     alert('Apps Script Web App URL을 설정해주세요.');
     return;
   }
-  const user = window.AZ_USER || sessionStorage.getItem('az_user') || 'AZ';
+  const user = window.AZ_USER || localStorage.getItem('az_user') || 'AZ';
   try {
     const res = await fetch(WEBAPP_URL, {
       method: 'POST',
