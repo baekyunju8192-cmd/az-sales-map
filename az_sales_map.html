@@ -219,34 +219,17 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
   z-index:9999;gap:12px;">
   <div style="font-size:24px;font-weight:700;color:#e8eaf0;margin-bottom:4px">AZ <span style="color:#5c6ef8">영업지도</span></div>
   <div style="font-size:12px;color:#7b82a0;margin-bottom:12px">(주)에이젯시스템</div>
-  <select id="id-input" style="
-    padding:10px 16px;background:#1a1d27;border:1px solid #2e3247;
-    border-radius:8px;color:#e8eaf0;font-size:14px;outline:none;
-    width:220px;cursor:pointer;appearance:none;text-align:center;">
-    <option value="">사원명 선택</option>
-    <option value="송광훈">송광훈 (과장)</option>
-    <option value="강경현">강경현 (과장)</option>
-    <option value="정기태">정기태 (대리)</option>
-    <option value="이동현">이동현 (대리)</option>
-    <option value="서한결">서한결 (대리)</option>
-    <option value="나규호">나규호 (대리)</option>
-    <option value="김동국">김동국 (대리)</option>
-    <option value="김미남">김미남 (대리)</option>
-    <option value="임치현">임치현 (대리)</option>
-    <option value="신상명">신상명 (주임)</option>
-    <option value="심규현">심규현 (주임)</option>
-    <option value="류민상">류민상 (사원)</option>
-    <option value="조준헌">조준헌 (사원)</option>
-    <option value="백윤주">백윤주 (사원)</option>
-    <option value="황지환">황지환 (사원)</option>
-    <option value="천경준">천경준 (사원)</option>
-    <option value="최선영">최선영 (사원)</option>
-    <option value="김현우">김현우 (사원)</option>
-    <option value="김준">김준 (사원)</option>
-    <option value="이우석">이우석 (사원)</option>
-    <option value="박정운">박정운 (사원)</option>
-    <option value="AZ">AZ (공용)</option>
-  </select>
+  <div style="position:relative;width:220px">
+    <input id="id-input" type="text" placeholder="이름 입력" autocomplete="off"
+      style="width:100%;padding:10px 16px;background:#1a1d27;border:1px solid #2e3247;
+      border-radius:8px;color:#e8eaf0;font-size:14px;outline:none;"
+      oninput="showSuggestions(this.value)"
+      onkeydown="if(event.key==='Enter') hideSuggestions()">
+    <div id="suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;
+      background:#1a1d27;border:1px solid #2e3247;border-top:none;border-radius:0 0 8px 8px;
+      z-index:10;max-height:160px;overflow-y:auto;">
+    </div>
+  </div>
   <input id="pw-input" type="password" placeholder="비밀번호 입력"
     style="padding:10px 16px;background:#1a1d27;border:1px solid #2e3247;
     border-radius:8px;color:#e8eaf0;font-size:14px;outline:none;width:220px;text-align:center"
@@ -269,12 +252,39 @@ const USERS = {
   '박정운':'01','AZ':'00'
 };
 
+const USER_LIST = ['송광훈','강경현','정기태','이동현','서한결','나규호',
+  '김동국','김미남','임치현','신상명','심규현','류민상','조준헌','백윤주',
+  '황지환','천경준','최선영','김현우','김준','이우석','박정운','AZ'];
+
+function showSuggestions(val) {
+  const box = document.getElementById('suggestions');
+  if (!val) { box.style.display='none'; return; }
+  const filtered = USER_LIST.filter(u => u.includes(val));
+  if (!filtered.length) { box.style.display='none'; return; }
+  box.innerHTML = filtered.map(u =>
+    `<div onclick="selectUser('${u}')" style="padding:8px 16px;cursor:pointer;color:#e8eaf0;font-size:13px"
+      onmouseover="this.style.background='#222536'" onmouseout="this.style.background=''">${u}</div>`
+  ).join('');
+  box.style.display='block';
+}
+
+function selectUser(name) {
+  document.getElementById('id-input').value = name;
+  hideSuggestions();
+  document.getElementById('pw-input').focus();
+}
+
+function hideSuggestions() {
+  document.getElementById('suggestions').style.display='none';
+}
+
 function checkLogin() {
-  const id = document.getElementById('id-input').value;
+  const id = document.getElementById('id-input').value.trim();
   const pw = document.getElementById('pw-input').value;
   const err = document.getElementById('pw-error');
 
-  if (!id) { err.style.display='block'; err.textContent='사원명을 선택해주세요.'; return; }
+  if (!id) { err.style.display='block'; err.textContent='이름을 입력해주세요.'; return; }
+  if (!USER_LIST.includes(id)) { err.style.display='block'; err.textContent='등록되지 않은 이름입니다.'; return; }
   if (USERS[id] !== pw) { err.style.display='block'; err.textContent='비밀번호가 틀렸습니다.'; document.getElementById('pw-input').value=''; return; }
 
   err.style.display='none';
@@ -282,9 +292,13 @@ function checkLogin() {
   localStorage.setItem('az_auth', '1');
   localStorage.setItem('az_user', id);
   window.AZ_USER = id;
-
-  // 헤더에 사원명 표시
   document.getElementById('hstatus').textContent = `${id} 님 | 데이터 로딩 중...`;
+}
+
+// 로컬스토리지에 저장된 이름 자동 입력
+const savedUser = localStorage.getItem('az_user');
+if (savedUser) {
+  document.getElementById('id-input').value = savedUser;
 }
 
 // 세션 유지
@@ -785,11 +799,17 @@ function switchTab(t) {
 function renderList() {
   const q = document.getElementById('srch').value.toLowerCase();
   // 검색어 있으면 전체 검색, 없으면 현재 지도 영역만
-  const items = data[curTab].filter(r => {
+  const allItems = data[curTab].filter(r => {
     const nameMatch = !q || r['거래처명'].toLowerCase().includes(q);
-    if (q) return nameMatch; // 검색어 있으면 지역 필터 무시
+    if (q) return nameMatch;
     return nameMatch && r._inBounds !== false;
   });
+
+  // 내 담당 거래처 상단 우선 정렬
+  const myName = window.AZ_USER || localStorage.getItem('az_user') || '';
+  const myItems = myName ? allItems.filter(r => (r['담당자']||'').includes(myName)) : [];
+  const otherItems = myName ? allItems.filter(r => !(r['담당자']||'').includes(myName)) : allItems;
+  const items = [...myItems, ...otherItems];
   const el = document.getElementById('clist');
 
   if (!items.length) { el.innerHTML='<div class="empty">검색 결과 없음</div>'; return; }
@@ -841,7 +861,41 @@ function renderList() {
     return !selected.some(s=>s._sid===id);
   });
 
-  el.innerHTML = searchSelHtml + selHtml + (unselItems.length ? unselItems.map((item) => {
+  // 내 담당 / 다른 담당 구분선
+  const myName2 = window.AZ_USER || localStorage.getItem('az_user') || '';
+  const myUnsel = unselItems.filter(r => myName2 && (r['담당자']||'').includes(myName2));
+  const otherUnsel = unselItems.filter(r => !myName2 || !(r['담당자']||'').includes(myName2));
+  
+  const myLabel = myUnsel.length && myName2 ? 
+    `<div style="padding:3px 12px;font-size:9px;font-weight:600;color:var(--accent);letter-spacing:.5px">⭐ 내 담당 거래처</div>` : '';
+  const otherLabel = otherUnsel.length && myUnsel.length && myName2 ?
+    `<div style="padding:3px 12px;font-size:9px;font-weight:600;color:var(--muted);letter-spacing:.5px;border-top:1px solid var(--border);margin-top:2px">기타 거래처</div>` : '';
+
+  const renderItem = (item) => {
+    const i = data[curTab].indexOf(item);
+    const id = `${curTab}_${i}`;
+    const mgr = item['담당자']||'';
+    const date = item['마지막거래일']||'';
+    const isMyItem = myName2 && mgr.includes(myName2);
+    return `<div class="ci" onclick="toggleSel('${curTab}',${i})">
+      <div class="chk"></div>
+      <div class="ci-info">
+        <div class="ci-name">${item['거래처명']}${isMyItem?'':''}</div>
+        <div class="ci-addr">${item['주소']||''}</div>
+        ${mgr||date?`<div class="ci-mgr">${mgr}${mgr&&date?' · ':''}${date}</div>`:''}
+      </div>
+      <span class="badge ${bc}">${lb}</span>
+    </div>`;
+  };
+
+  el.innerHTML = searchSelHtml + selHtml + (unselItems.length ? 
+    myLabel + myUnsel.map(renderItem).join('') +
+    otherLabel + otherUnsel.map(renderItem).join('')
+    : '<div class="empty">이 지역 거래처 없음</div>');
+}
+
+// 기존 unselItems 렌더링 제거용 더미
+function _unused() { return unselItems.map((item) => {
     const i = data[curTab].indexOf(item);
     const id = `${curTab}_${i}`;
     const mgr = item['담당자']||'';
