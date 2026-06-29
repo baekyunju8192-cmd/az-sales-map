@@ -876,25 +876,25 @@ function renderList() {
   // ③ 현재 지역 + 타 담당
   // ④ 타지역 + 내 담당
   // ⑤ 나머지 전체
-  const all = data[curTab];
-  
-  const isMatch  = r => !q || (r['거래처명']||'').toLowerCase().includes(q);
+  const isMatch    = r => !q || (r['거래처명']||'').toLowerCase().includes(q);
   const isInBounds = r => r._inBounds !== false;
-  const isMine   = r => myName && (r['담당자']||'').includes(myName);
+  const isMine     = r => myName && (r['담당자']||'').includes(myName);
 
   let items;
   if (q) {
-    // 검색어 있으면: 매칭 전체 표시 (지역/담당 무관), 내 담당 먼저
-    const matched = all.filter(isMatch);
+    // 검색어 있으면: 기존+신규+휴면 전체에서 검색, 내 담당 먼저
+    const allData = [...data.active, ...data.new, ...data.dormant];
+    const matched = allData.filter(isMatch);
     const myMatched    = matched.filter(isMine);
     const otherMatched = matched.filter(r => !isMine(r));
     items = [...myMatched, ...otherMatched];
   } else {
-    // 검색어 없으면: 우선순위대로
-    const g1 = all.filter(r => isInBounds(r) && isMine(r));   // 지역내 내담당
-    const g2 = all.filter(r => isInBounds(r) && !isMine(r));  // 지역내 타담당
-    const g3 = all.filter(r => !isInBounds(r) && isMine(r));  // 타지역 내담당
-    const g4 = all.filter(r => !isInBounds(r) && !isMine(r)); // 타지역 타담당
+    // 검색어 없으면: 현재 탭 기준 우선순위
+    const all = data[curTab];
+    const g1 = all.filter(r => isInBounds(r) && isMine(r));
+    const g2 = all.filter(r => isInBounds(r) && !isMine(r));
+    const g3 = all.filter(r => !isInBounds(r) && isMine(r));
+    const g4 = all.filter(r => !isInBounds(r) && !isMine(r));
     items = [...g1, ...g2, ...g3, ...g4];
   }
   const el = document.getElementById('clist');
@@ -959,19 +959,27 @@ function renderList() {
     `<div style="padding:3px 12px;font-size:9px;font-weight:600;color:var(--muted);letter-spacing:.5px;border-top:1px solid var(--border);margin-top:2px">기타 거래처</div>` : '';
 
   const renderItem = (item) => {
-    const i = data[curTab].indexOf(item);
-    const id = `${curTab}_${i}`;
+    // 검색 시 어느 탭 데이터인지 판별
+    let itemType = curTab;
+    let itemIdx = data[curTab].indexOf(item);
+    if (q && itemIdx < 0) {
+      if (data.active.indexOf(item) >= 0) { itemType='active'; itemIdx=data.active.indexOf(item); }
+      else if (data.new.indexOf(item) >= 0) { itemType='new'; itemIdx=data.new.indexOf(item); }
+      else if (data.dormant.indexOf(item) >= 0) { itemType='dormant'; itemIdx=data.dormant.indexOf(item); }
+    }
+    const id = `${itemType}_${itemIdx}`;
     const mgr = item['담당자']||'';
     const date = item['마지막거래일']||'';
-    const isMyItem = myName2 && mgr.includes(myName2);
-    return `<div class="ci" onclick="toggleSel('${curTab}',${i})">
+    const typeBc = itemType==='active'?'b-act':itemType==='new'?'b-new':'b-dorm';
+    const typeLb = itemType==='active'?'기존':itemType==='new'?'신규':'휴면';
+    return `<div class="ci" onclick="toggleSel('${itemType}',${itemIdx})">
       <div class="chk"></div>
       <div class="ci-info">
-        <div class="ci-name">${item['거래처명']}${isMyItem?'':''}</div>
+        <div class="ci-name">${item['거래처명']}</div>
         <div class="ci-addr">${item['주소']||''}</div>
         ${mgr||date?`<div class="ci-mgr">${mgr}${mgr&&date?' · ':''}${date}</div>`:''}
       </div>
-      <span class="badge ${bc}">${lb}</span>
+      <span class="badge ${typeBc}">${typeLb}</span>
     </div>`;
   };
 
