@@ -887,8 +887,7 @@ let curCatBtn = null;
 let curCat = null;
 let curCatName = '';
 let searchSelected = [];
-let labelOverlays = { active:[], new:[], dormant:[] };
-let labelsVisible = false;
+
 let polylines = [];
 let top5 = {};
 
@@ -943,12 +942,8 @@ window.onload = async () => {
   // 지도 이동 시 카테고리 재검색 + 라벨 업데이트
   kakao.maps.event.addListener(map, 'idle', () => {
     if (curCat) doSearch(curCat);
-    updateLabels();
     filterListByBounds();
   });
-
-  // 줌 변경 즉시 라벨 토글
-  kakao.maps.event.addListener(map, 'zoom_changed', updateLabels);
 
   await loadAll();
   document.getElementById('loading').classList.add('hide');
@@ -1071,28 +1066,16 @@ async function loadProspectMarkers() {
 
       kakao.maps.event.addListener(m, 'click', () => {
         if(curIW) { try{curIW.close();}catch(e){curIW.setMap(null);} curIW=null; }
-        const cat = item['카테고리']||'신규영업처';
-        const visited = item['방문여부'];
-        const result = item['결과']||'';
-        const memo = item['메모']||'';
-        const c = `<div class="iw">
-          <div class="iw-name">${item['업체명']}</div>
-          <div class="iw-addr">${item['주소']||''}</div>
-          <div class="iw-row">
-            <span class="iw-badge" style="background:rgba(232,68,68,.15);color:#e84444">${cat}</span>
-            ${result?`<span class="iw-mgr">· ${result}</span>`:''}
-            ${visited?'<span class="iw-mgr" style="color:#27ae60">· ✓방문완료</span>':''}
-          </div>
-          ${memo?`<div class="iw-addr" style="margin-top:4px">📝 ${memo}</div>`:''}
-          <div style="margin-top:8px">
-            <button onclick="addSearchMarkerToPlan('${item['업체명'].replace(/'/g,"\'")}','${(item['주소']||'').replace(/'/g,"\'")}',${lat},${lng})"
-              style="width:100%;padding:5px;background:#5c6ef8;border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer">
-              📍 경로 추가
-            </button>
-          </div>
-        </div>`;
-        curIW = new kakao.maps.InfoWindow({content:c, removable:true});
-        curIW.open(map, m);
+        const cat     = item['카테고리']||'신규영업처';
+        const visited = item['방문여부']===true || item['방문여부']==='TRUE';
+        const memo    = item['메모']||'';
+        const overlay = new kakao.maps.CustomOverlay({
+          position: new kakao.maps.LatLng(lat, lng),
+          content: buildProspectIW(item['업체명'], item['주소']||'', cat, lat, lng, true, visited, memo, ''),
+          yAnchor: 1.3, zIndex: 10
+        });
+        overlay.setMap(map);
+        curIW = overlay;
       });
       markers.search.push(m);
     });
@@ -1128,33 +1111,6 @@ function placeMarkers(type) {
     markers[type].push(marker);
     item._idx = idx;
     item._hasCoord = true;
-
-    // 거래처명 라벨 오버레이 (줌 레벨 7 이하에서만 표시)
-    const labelEl = document.createElement('div');
-    labelEl.style.cssText = `
-      background:rgba(15,17,23,0.85);
-      color:white;
-      font-size:10px;
-      font-weight:600;
-      padding:2px 6px;
-      border-radius:3px;
-      white-space:nowrap;
-      transform:translateX(-50%);
-      margin-top:2px;
-      border:1px solid ${color}60;
-      cursor:pointer;
-    `;
-    labelEl.textContent = item['거래처명'];
-    // 라벨 클릭 시 마커 클릭과 동일하게 처리
-    labelEl.addEventListener('click', () => showIW(marker, item, type));
-    const label = new kakao.maps.CustomOverlay({
-      position: new kakao.maps.LatLng(lat, lng),
-      content: labelEl,
-      yAnchor: -0.3,
-      zIndex: 1,
-      map: null
-    });
-    labelOverlays[type].push(label);
   });
 }
 
@@ -1233,10 +1189,6 @@ function getTop5(name) {
 function toggleLayer(type) {
   visible[type] = !visible[type];
   markers[type].forEach(m => m.setMap(visible[type]?map:null));
-  // 라벨도 같이 토글
-  if (labelOverlays[type]) {
-    labelOverlays[type].forEach(l => l.setMap(visible[type] && labelsVisible ? map : null));
-  }
   document.getElementById(`leg-${type}`).classList.toggle('off', !visible[type]);
 }
 
@@ -1436,36 +1388,13 @@ function doSearch(keywords) {
         m._category = curCatName;
 
         kakao.maps.event.addListener(m, 'click', () => {
-          // 기존 오버레이 닫기
-          if(curIW) { curIW.setMap(null); curIW=null; }
-
-          const pid = 'p_' + Math.random().toString(36).substr(2,9);
+          if(curIW) { try{curIW.setMap(null);}catch(e){} curIW=null; }
           const addr = place.road_address_name || place.address_name;
-          const placeData = { pid, name:place.place_name, addr, cat:curCatName||'', lat, lng, marker:m };
-          window._curPlace = placeData;
-
-          const isSel = searchSelected.some(s=>s._pid===pid);
+          const hours = place.opening_hours || '';
           const overlay = new kakao.maps.CustomOverlay({
             position: new kakao.maps.LatLng(lat, lng),
-            content: `<div class="iw" style="position:relative">
-              <button onclick="closeOverlay()" style="position:absolute;top:4px;right:4px;background:none;border:none;color:#7b82a0;cursor:pointer;font-size:14px">✕</button>
-              <div class="iw-name">${place.place_name}</div>
-              <div class="iw-addr">${addr}</div>
-              <span class="iw-badge" style="background:rgba(232,68,68,.15);color:#e84444">${curCatName||'검색결과'}</span>
-              <div style="display:flex;gap:5px;margin-top:8px">
-                <button id="btn-route-${pid}"
-                  onclick="addToRoute('${pid}')"
-                  style="flex:1;padding:5px;background:${isSel?'#3b6ef8':'#5c6ef8'};border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer">
-                  ${isSel?'✅ 추가됨':'📍 경로 추가'}
-                </button>
-                <button onclick="registerProspect('${place.place_name.replace(/'/g,"\'")}','${addr.replace(/'/g,"\'")}','${curCatName||''}',${lat},${lng})"
-                  style="flex:1;padding:5px;background:#27ae60;border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer">
-                  📋 영업처 등록
-                </button>
-              </div>
-            </div>`,
-            yAnchor: 1.3,
-            zIndex: 10
+            content: buildProspectIW(place.place_name, addr, curCatName||'검색결과', lat, lng, false, false, '', hours),
+            yAnchor: 1.3, zIndex: 10
           });
           overlay.setMap(map);
           curIW = overlay;
@@ -1485,24 +1414,7 @@ function clearCat() {
 
 function normName(n) { return String(n||'').replace(/\s+/g,'').trim(); }
 
-// 줌 레벨에 따라 라벨 표시/숨김
-// 모바일: 라벨 끔, PC: 레벨 7 이하
-function updateLabels() {
-  const isMobile = window.innerWidth <= 768;
-  if (isMobile) return; // 모바일은 라벨 사용 안 함
-
-  const level = map.getLevel();
-  const show = level <= 7;
-  if (show === labelsVisible) return;
-  labelsVisible = show;
-
-  ['active','new','dormant'].forEach(type => {
-    labelOverlays[type].forEach(label => {
-      if (!visible[type]) { label.setMap(null); return; }
-      label.setMap(show ? map : null);
-    });
-  });
-}
+// 라벨 기능 삭제됨
 
 // ── GPS 현재 위치 ──
 let myLocationMarker = null;
@@ -1934,6 +1846,122 @@ async function submitAddForm() {
   });
 }
 
+
+// ── 신규영업처 통합 팝업 (카테고리 검색 + 등록된 신규영업처 공통) ──
+function buildProspectIW(name, addr, cat, lat, lng, isRegistered, visitedIn, memoIn, openHours) {
+  const nameE = name.replace(/'/g,"\'").replace(/"/g,'&quot;');
+  const addrE = addr.replace(/'/g,"\'").replace(/"/g,'&quot;');
+  const catE  = cat.replace(/'/g,"\'");
+  const hoursHtml = openHours
+    ? `<div style="font-size:11px;color:#7b82a0;margin-top:3px">⏰ ${openHours}</div>` : '';
+  const visitedHtml = isRegistered
+    ? `<div style="font-size:11px;color:${visitedIn?'#27ae60':'#7b82a0'};margin-top:3px">${visitedIn?'✅ 방문완료':'⬜ 미방문'}</div>` : '';
+  const memoHtml = (isRegistered && memoIn)
+    ? `<div style="font-size:11px;color:#7b82a0;margin-top:3px">📝 ${memoIn}</div>` : '';
+
+  const tMapUrl = `tmap://route?goalname=${encodeURIComponent(name)}&goaly=${lat}&goalx=${lng}`;
+  const tMapWebUrl = `https://tmap.life/${lat},${lng}`;
+
+  return `<div class="iw" style="position:relative;min-width:210px">
+    <button onclick="closeOverlay()" style="position:absolute;top:4px;right:4px;background:none;border:none;color:#7b82a0;cursor:pointer;font-size:14px">✕</button>
+    <div class="iw-name">${name}</div>
+    <div class="iw-addr">${addr}</div>
+    <span class="iw-badge" style="background:rgba(232,68,68,.15);color:#e84444">${cat||'신규영업처'}</span>
+    ${hoursHtml}${visitedHtml}${memoHtml}
+    <div style="display:flex;gap:5px;margin-top:8px">
+      ${!isRegistered
+        ? `<button onclick="upsertProspectAction('register','${nameE}','${addrE}','${catE}',${lat},${lng},false,'')"
+            style="flex:1;padding:6px;background:#5c6ef8;border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer">📋 등록</button>`
+        : `<button style="flex:1;padding:6px;background:#2e3247;border:none;border-radius:5px;color:#5c6ef8;font-size:11px;cursor:default">✅ 등록됨</button>`
+      }
+      <button onclick="upsertProspectAction('visit','${nameE}','${addrE}','${catE}',${lat},${lng},${!visitedIn},'')"
+        style="flex:1;padding:6px;background:${visitedIn?'#27ae60':'#2e3247'};border:1px solid ${visitedIn?'#27ae60':'#3a4060'};border-radius:5px;color:${visitedIn?'white':'#7b82a0'};font-size:11px;cursor:pointer">
+        ${visitedIn?'✓ 방문':'방문 체크'}
+      </button>
+      <a href="${tMapUrl}" onclick="if(!navigator.userAgent.match(/Android|iPhone/i))this.href='${tMapWebUrl}'" target="_blank"
+        style="flex:1;padding:6px;background:#1b6cf2;border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center">
+        🗺️ T맵
+      </a>
+    </div>
+    <div style="display:flex;gap:5px;margin-top:6px">
+      <input id="iw-memo-input" placeholder="비고 입력..." value="${memoIn||''}"
+        style="flex:1;padding:5px 8px;background:#1a1d27;border:1px solid #2e3247;border-radius:5px;color:#e8eaf0;font-size:11px;outline:none">
+      <button onclick="upsertProspectAction('memo','${nameE}','${addrE}','${catE}',${lat},${lng},false,document.getElementById('iw-memo-input').value)"
+        style="padding:5px 10px;background:#e67e22;border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer">작성</button>
+    </div>
+  </div>`;
+}
+
+// 모바일용 신규영업처 팝업
+function buildProspectIW_mobile(name, addr, cat, lat, lng, isRegistered, visitedIn, memoIn, openHours) {
+  const nameE = name.replace(/'/g,"\'").replace(/"/g,'&quot;');
+  const addrE = addr.replace(/'/g,"\'").replace(/"/g,'&quot;');
+  const catE  = cat.replace(/'/g,"\'");
+  const hoursHtml = openHours ? `<div style="font-size:12px;color:#7b82a0;margin-top:4px">⏰ ${openHours}</div>` : '';
+  const tMapUrl = `tmap://route?goalname=${encodeURIComponent(name)}&goaly=${lat}&goalx=${lng}`;
+  const tMapWebUrl = `https://tmap.life/${lat},${lng}`;
+
+  return `<div style="background:#1a1d27;border:1px solid #2e3247;border-radius:12px;padding:14px 16px;min-width:220px;max-width:280px;box-shadow:0 4px 20px rgba(0,0,0,.6)">
+    <div style="font-size:15px;font-weight:700;color:#e8eaf0;margin-bottom:3px">${name}</div>
+    <div style="font-size:12px;color:#7b82a0;margin-bottom:4px;line-height:1.4">${addr}</div>
+    <span style="font-size:11px;background:rgba(232,68,68,.15);color:#e84444;padding:2px 8px;border-radius:4px">${cat||'신규영업처'}</span>
+    ${hoursHtml}
+    ${isRegistered && visitedIn ? '<div style="font-size:12px;color:#27ae60;margin-top:4px">✅ 방문완료</div>' : ''}
+    ${isRegistered && memoIn ? `<div style="font-size:11px;color:#7b82a0;margin-top:4px">📝 ${memoIn}</div>` : ''}
+    <div style="display:flex;gap:6px;margin-top:12px">
+      ${!isRegistered
+        ? `<button onclick="mUpsertProspect('register','${nameE}','${addrE}','${catE}',${lat},${lng},false,'')" style="flex:1;padding:10px;background:#5c6ef8;border:none;border-radius:8px;color:white;font-size:12px;font-weight:600;cursor:pointer">📋 등록</button>`
+        : `<button style="flex:1;padding:10px;background:#2e3247;border:none;border-radius:8px;color:#5c6ef8;font-size:12px;cursor:default">✅ 등록됨</button>`
+      }
+      <button onclick="mUpsertProspect('visit','${nameE}','${addrE}','${catE}',${lat},${lng},${!visitedIn},'')"
+        style="flex:1;padding:10px;background:${visitedIn?'#27ae60':'#2e3247'};border:1px solid ${visitedIn?'#27ae60':'#3a4060'};border-radius:8px;color:${visitedIn?'white':'#7b82a0'};font-size:12px;cursor:pointer">
+        ${visitedIn?'✓ 방문':'방문 체크'}
+      </button>
+      <a href="${tMapUrl}" onclick="if(!navigator.userAgent.match(/Android|iPhone/i))this.href='${tMapWebUrl}'" target="_blank"
+        style="flex:1;padding:10px;background:#1b6cf2;border:none;border-radius:8px;color:white;font-size:12px;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center">
+        🗺️ T맵
+      </a>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <input id="m-iw-memo" placeholder="비고 입력..." value="${memoIn||''}"
+        style="flex:1;padding:9px 12px;background:#0f1117;border:1px solid #2e3247;border-radius:8px;color:#e8eaf0;font-size:12px;outline:none">
+      <button onclick="mUpsertProspect('memo','${nameE}','${addrE}','${catE}',${lat},${lng},false,document.getElementById('m-iw-memo').value)"
+        style="padding:9px 14px;background:#e67e22;border:none;border-radius:8px;color:white;font-size:12px;font-weight:600;cursor:pointer">작성</button>
+    </div>
+  </div>`;
+}
+
+// upsertProspect 액션 실행 (PC)
+async function upsertProspectAction(action, name, addr, cat, lat, lng, visited, memo) {
+  const user = window.AZ_USER || localStorage.getItem('az_user') || 'AZ';
+  try {
+    await fetch(WEBAPP_URL, {
+      method:'POST', mode:'no-cors',
+      body: JSON.stringify({ action:'upsertProspect', name, address:addr, category:cat, lat, lng, registeredBy:user,
+        prospectAction:action, visited, memo })
+    });
+    // 팝업 새로고침
+    const msg = action==='register'?'등록 완료':action==='visit'?'방문 체크 완료':'비고 작성 완료';
+    alert(msg);
+    if(curIW){try{curIW.close();}catch(e){curIW.setMap(null);} curIW=null;}
+  } catch(e) { alert('실패: '+e.message); }
+}
+
+// upsertProspect 액션 실행 (모바일)
+async function mUpsertProspect(action, name, addr, cat, lat, lng, visited, memo) {
+  const user = window.AZ_USER || localStorage.getItem('az_user') || 'AZ';
+  try {
+    await fetch(WEBAPP_URL, {
+      method:'POST', mode:'no-cors',
+      body: JSON.stringify({ action:'upsertProspect', name, address:addr, category:cat, lat, lng, registeredBy:user,
+        prospectAction:action, visited, memo })
+    });
+    const msg = action==='register'?'등록 완료':action==='visit'?'방문 체크 완료':'비고 작성 완료';
+    alert(msg);
+    if(mCurIW2){try{mCurIW2.close();}catch(e){try{mCurIW2.setMap(null);}catch(e2){}} mCurIW2=null;}
+  } catch(e) { alert('실패'); }
+}
+
 function closeOverlay() {
   if(curIW) { curIW.setMap(null); curIW=null; }
 }
@@ -2312,19 +2340,40 @@ function initMobile() {
 }
 
 function mPlaceAllMarkers() {
+  // 배치 처리로 UI 블로킹 방지 (601개 마커를 한꺼번에 생성하면 렉 발생)
   var typeColors = { active:'#3b82f6', new:'#27ae60', dormant:'#888888' };
-  ['active','new','dormant'].forEach(function(type) {
-    if (!data[type]) return;
-    data[type].forEach(function(item, idx) {
-      var lat = parseFloat(item['위도']);
-      var lng = parseFloat(item['경도']);
-      if (!lat || !lng) return;
-      var m = mMakeMarker2(lat, lng, typeColors[type]);
-      (function(it, tp, ix){ kakao.maps.event.addListener(m, 'click', function(){ mShowIW2(m, it, tp, ix); }); })(item, type, idx);
-      mMobMarkers[type === 'new' ? 'new2' : type].push(m);
-    });
-  });
-  mLoadProspectMarkers2();
+  var typeKeys = ['active','new','dormant'];
+  var typeIdx = 0;
+  var itemIdx = 0;
+  var BATCH = 50; // 한 번에 50개씩 처리
+
+  function processBatch() {
+    var count = 0;
+    while (typeIdx < typeKeys.length) {
+      var type = typeKeys[typeIdx];
+      if (!data[type]) { typeIdx++; itemIdx=0; continue; }
+      while (itemIdx < data[type].length) {
+        var item = data[type][itemIdx];
+        var lat = parseFloat(item['위도']);
+        var lng = parseFloat(item['경도']);
+        itemIdx++;
+        if (!lat || !lng) continue;
+        var m = mMakeMarker2(lat, lng, typeColors[type]);
+        (function(it, tp, ix){ kakao.maps.event.addListener(m, 'click', function(){ mShowIW2(m, it, tp, ix); }); })(item, type, typeIdx-1 === 0 ? itemIdx-1 : itemIdx-1);
+        mMobMarkers[type === 'new' ? 'new2' : type].push(m);
+        count++;
+        if (count >= BATCH) {
+          setTimeout(processBatch, 0);
+          return;
+        }
+      }
+      typeIdx++;
+      itemIdx = 0;
+    }
+    // 모든 마커 처리 완료 후 신규영업처 로드
+    mLoadProspectMarkers2();
+  }
+  processBatch();
 }
 
 function mMakeMarker2(lat, lng, color) {
@@ -2503,23 +2552,16 @@ function mDoSearch2(keywords) {
         if (dup) return;
         var emoji = CAT_EMOJI[mCurCatName2]||'📍';
         var m = mMakeEmojiMarker2(lat, lng, emoji);
-        (function(pl){
+        (function(pl, plLat, plLng){
           kakao.maps.event.addListener(m, 'click', function(){
             if(mCurIW2){try{mCurIW2.close();}catch(e){try{mCurIW2.setMap(null);}catch(e2){}} mCurIW2=null;}
             var addr2 = pl.road_address_name||pl.address_name;
-            window._mCurPlace2 = {name:pl.place_name, addr:addr2, cat:mCurCatName2, lat:lat, lng:lng};
-            var c = '<div style="background:#1a1d27;border:1px solid #2e3247;border-radius:12px;padding:14px 16px;min-width:210px;max-width:270px;box-shadow:0 4px 20px rgba(0,0,0,.6)">'
-              +'<div style="font-size:16px;font-weight:700;color:#e8eaf0;margin-bottom:3px">'+pl.place_name+'</div>'
-              +'<div style="font-size:12px;color:#7b82a0;margin-bottom:8px">'+addr2+'</div>'
-              +'<span style="font-size:11px;background:rgba(232,68,68,.15);color:#e84444;padding:2px 8px;border-radius:4px">'+mCurCatName2+'</span>'
-              +'<div style="display:flex;gap:6px;margin-top:12px">'
-              +'<button onclick="mAddCatToRoute2()" style="flex:1;padding:11px;background:#5c6ef8;border:none;border-radius:8px;color:white;font-size:13px;font-weight:600;cursor:pointer">📍 경로 추가</button>'
-              +'<button onclick="mRegisterProspect2()" style="flex:1;padding:11px;background:#27ae60;border:none;border-radius:8px;color:white;font-size:13px;font-weight:600;cursor:pointer">📋 등록</button>'
-              +'</div></div>';
-            mCurIW2 = new kakao.maps.InfoWindow({content:c, removable:true});
+            var hours2 = pl.opening_hours||'';
+            var content = buildProspectIW_mobile(pl.place_name, addr2, mCurCatName2, plLat, plLng, false, false, '', hours2);
+            mCurIW2 = new kakao.maps.InfoWindow({content:content, removable:true});
             mCurIW2.open(mMap2, m);
           });
-        })(place);
+        })(place, lat, lng);
         mMobMarkers.search.push(m);
       });
     }, opts);
@@ -2569,20 +2611,17 @@ async function mLoadProspectMarkers2() {
         position:new kakao.maps.LatLng(lat,lng), map:mMap2,
         image:new kakao.maps.MarkerImage(url,new kakao.maps.Size(16,16),{offset:new kakao.maps.Point(8,8)})
       });
-      (function(it){
+      (function(it, iLat2, iLng2){
         kakao.maps.event.addListener(m,'click',function(){
           if(mCurIW2){try{mCurIW2.close();}catch(e){try{mCurIW2.setMap(null);}catch(e2){}} mCurIW2=null;}
-          var c='<div style="background:#1a1d27;border:1px solid #2e3247;border-radius:12px;padding:14px 16px;min-width:200px;box-shadow:0 4px 20px rgba(0,0,0,.6)">'
-            +'<div style="font-size:16px;font-weight:700;color:#e8eaf0;margin-bottom:3px">'+(it['업체명']||'')+'</div>'
-            +'<div style="font-size:12px;color:#7b82a0;margin-bottom:8px">'+(it['주소']||'')+'</div>'
-            +'<span style="font-size:11px;background:rgba(232,68,68,.15);color:#e84444;padding:2px 8px;border-radius:4px">'+(it['카테고리']||'신규영업처')+'</span>'
-            +(it['결과']?'<span style="font-size:11px;color:#7b82a0;margin-left:6px">'+it['결과']+'</span>':'')
-            +(it['메모']?'<div style="font-size:11px;color:#7b82a0;margin-top:6px">📝 '+it['메모']+'</div>':'')
-            +'</div>';
-          mCurIW2=new kakao.maps.InfoWindow({content:c,removable:true});
+          var cat3 = it['카테고리']||'신규영업처';
+          var vis3 = it['방문여부']===true||it['방문여부']==='TRUE';
+          var mem3 = it['메모']||'';
+          var content3 = buildProspectIW_mobile(it['업체명']||'', it['주소']||'', cat3, iLat2, iLng2, true, vis3, mem3, '');
+          mCurIW2=new kakao.maps.InfoWindow({content:content3,removable:true});
           mCurIW2.open(mMap2,m);
         });
-      })(item);
+      })(item, lat, lng);
       mMobMarkers.prospect.push(m);
     });
   } catch(e) {}
@@ -2591,7 +2630,7 @@ async function mLoadProspectMarkers2() {
 function mRenderSearch() {
   var q = document.getElementById('m-srch').value.toLowerCase().trim();
   var el = document.getElementById('m-search-list');
-  if (!q) { el.innerHTML='<div class="m-empty">거래처명을 입력하세요</div>'; return; }
+  if (!q || q.length < 2) { el.innerHTML='<div class="m-empty">2글자 이상 입력하세요</div>'; return; }
   var myName = window.AZ_USER||localStorage.getItem('az_user')||'';
   var types = mSrchFilter_val==='all' ? ['active','new','dormant'] : [mSrchFilter_val];
   var typeColors = {active:'#3b82f6',new:'#27ae60',dormant:'#888'};
@@ -2607,7 +2646,7 @@ function mRenderSearch() {
   var others = results.filter(function(r){return !myName||!(r['담당자']||'').includes(myName);});
   results = mine.concat(others);
   if (!results.length) { el.innerHTML='<div class="m-empty">검색 결과 없음</div>'; return; }
-  el.innerHTML = results.slice(0,50).map(function(item){
+  el.innerHTML = results.slice(0,20).map(function(item){
     var t = item._mtype;
     var idx = data[t].findIndex(function(r){return r['거래처명']===item['거래처명']&&r['주소']===item['주소'];});
     var sid = t+'_'+idx;
