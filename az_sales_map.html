@@ -2415,7 +2415,7 @@ function mShowIW2(marker, item, type, idx) {
     +(mgr?'<span style="font-size:11px;color:#7b82a0">'+mgr+'</span>':'')
     +(date?'<span style="font-size:11px;color:#7b82a0">· '+date+'</span>':'')
     +'</div>'
-    +'<button onclick="mAddToRoute2(''+type+'','+idx+')" style="width:100%;padding:12px;background:'+(isSel?'#3b6ef8':'#5c6ef8')+';border:none;border-radius:8px;color:white;font-size:14px;font-weight:600;cursor:pointer">'
+    +'<button onclick="mAddToRoute2(\''+type+'\','+idx+')" style="width:100%;padding:12px;background:'+(isSel?'#3b6ef8':'#5c6ef8')+';border:none;border-radius:8px;color:white;font-size:14px;font-weight:600;cursor:pointer">'
     +(isSel?'✅ 경로에 추가됨':'📍 경로 추가')
     +'</button></div>';
   mCurIW2 = new kakao.maps.InfoWindow({content:c, removable:true});
@@ -2652,8 +2652,8 @@ function mRenderSearch() {
     var sid = t+'_'+idx;
     var isSel = selected.some(function(s){return s._sid===sid;});
     var isMine2 = myName&&(item['담당자']||'').includes(myName);
-    return '<div class="m-cust-item" onclick="mSelectFromSearch2(''+t+'','+idx+')">'
-      +'<div class="m-chk '+(isSel?'checked':'')">'+(isSel?'✓':'')+'</div>'
+    return '<div class="m-cust-item" onclick="mSelectFromSearch2(\''+t+'\','+idx+')">'
+      +'<div class="m-chk'+(isSel?' checked':'')+'">'+(isSel?'✓':'')+'</div>'
       +'<div class="m-cust-info">'
       +'<div class="m-cust-name">'+(isMine2?'⭐ ':'')+item['거래처명']+'</div>'
       +'<div class="m-cust-sub">'+(item['주소']||'')+(item['담당자']?' · '+item['담당자']:'')+'</div>'
@@ -2719,8 +2719,8 @@ function mRenderPlanList2() {
   el.innerHTML = items.map(function(item,i){
     var done = item['방문완료']===true||item['방문완료']==='TRUE';
     var nameEsc = item['거래처명'].replace(/'/g,"\'");
-    return '<div class="m-plan-item" onclick="mToggleVisit2(''+nameEsc+'','+i+')">'
-      +'<div class="m-visit-circle '+(done?'done':'')">'+(done?'✓':'')+'</div>'
+    return '<div class="m-plan-item" onclick="mToggleVisit2(\''+nameEsc+'\','+i+')">'
+      +'<div class="m-visit-circle'+(done?' done':'')+'">'+(done?'✓':'')+'</div>'
       +'<div class="m-plan-info">'
       +'<div class="m-plan-name '+(done?'done':'')+'">'+item['No']+'. '+item['거래처명']+'</div>'
       +'<div class="m-plan-addr">'+(item['주소']||'')+'</div>'
