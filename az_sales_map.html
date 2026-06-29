@@ -556,10 +556,15 @@ window.onload = async () => {
     map
   });
 
-  // 지도 이동 시 카테고리 재검색
+  // 지도 이동 시 카테고리 재검색 + 라벨 업데이트
   kakao.maps.event.addListener(map, 'idle', () => {
     if (curCat) doSearch(curCat);
+    updateLabels();
+    filterListByBounds();
   });
+
+  // 줌 변경 즉시 라벨 토글
+  kakao.maps.event.addListener(map, 'zoom_changed', updateLabels);
 
   await loadAll();
   document.getElementById('loading').classList.add('hide');
