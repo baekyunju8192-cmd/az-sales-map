@@ -503,6 +503,8 @@ let curCatBtn = null;
 let curCat = null;
 let curCatName = '';
 let searchSelected = [];
+let labelOverlays = { active:[], new:[], dormant:[] };
+let labelsVisible = false;
 let polylines = [];
 let top5 = {};
 
@@ -737,6 +739,31 @@ function placeMarkers(type) {
     markers[type].push(marker);
     item._idx = idx;
     item._hasCoord = true;
+
+    // 거래처명 라벨 오버레이 (줌 레벨 7 이하에서만 표시)
+    const labelEl = document.createElement('div');
+    labelEl.style.cssText = `
+      background:rgba(15,17,23,0.8);
+      color:white;
+      font-size:10px;
+      font-weight:600;
+      padding:2px 5px;
+      border-radius:3px;
+      white-space:nowrap;
+      pointer-events:none;
+      transform:translateX(-50%);
+      margin-top:2px;
+      border:1px solid ${color}40;
+    `;
+    labelEl.textContent = item['거래처명'];
+    const label = new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(lat, lng),
+      content: labelEl,
+      yAnchor: -0.3,
+      zIndex: 1,
+      map: null
+    });
+    labelOverlays[type].push(label);
   });
 }
 
@@ -815,6 +842,10 @@ function getTop5(name) {
 function toggleLayer(type) {
   visible[type] = !visible[type];
   markers[type].forEach(m => m.setMap(visible[type]?map:null));
+  // 라벨도 같이 토글
+  if (labelOverlays[type]) {
+    labelOverlays[type].forEach(l => l.setMap(visible[type] && labelsVisible ? map : null));
+  }
   document.getElementById(`leg-${type}`).classList.toggle('off', !visible[type]);
 }
 
@@ -1054,6 +1085,21 @@ function clearCat() {
 }
 
 function normName(n) { return String(n||'').replace(/\s+/g,'').trim(); }
+
+// 줌 레벨에 따라 라벨 표시/숨김
+function updateLabels() {
+  const level = map.getLevel();
+  const show = level <= 7;
+  if (show === labelsVisible) return;
+  labelsVisible = show;
+
+  ['active','new','dormant'].forEach(type => {
+    labelOverlays[type].forEach((label, i) => {
+      if (!visible[type]) { label.setMap(null); return; }
+      label.setMap(show ? map : null);
+    });
+  });
+}
 
 // ── GPS 현재 위치 ──
 let myLocationMarker = null;
