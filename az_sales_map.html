@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>AZ 영업지도</title>
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=ec7bc6e64af739bb295e74161a8a069d&libraries=services"></script>
 <style>
@@ -31,7 +31,7 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
 .main { display:flex; flex:1; overflow:hidden; }
 
 /* 사이드바 */
-.sidebar { width:290px; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; }
+.sidebar { width:290px; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; transition:width .3s; position:relative; }
 .sb-sec { padding:10px 12px; border-bottom:1px solid var(--border); }
 .sec-label { font-size:10px; font-weight:600; letter-spacing:.8px; text-transform:uppercase; color:var(--muted); margin-bottom:7px; }
 
@@ -122,45 +122,109 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
 .spin { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 .load-txt { font-size:12px; color:var(--muted); }
+
+@media (max-width: 768px) {
+  .sidebar { width:100% !important; max-width:100%; position:fixed; bottom:0; left:0; z-index:8;
+    height:45vh; border-right:none; border-top:1px solid var(--border); flex-shrink:0; }
+  .map-wrap { height:55vh; }
+  .main { flex-direction:column; }
+  #sidebar-toggle { display:none; }
+  .cat-bar { top:8px; padding:4px 6px; gap:4px; }
+  .cat { padding:4px 8px; font-size:11px; }
+  .region-bar { top:50px; }
+  .region-btn { font-size:11px; padding:4px 10px; }
+  .cust-name { font-size:13px; }
+  .cust-addr { font-size:11px; }
+  .btn-route { padding:10px; font-size:14px; }
+  header { height:44px; padding:0 10px; gap:8px; }
+  .logo { font-size:14px; }
+  .legend { gap:8px; }
+  .leg { font-size:10px; padding:2px 5px; }
+}
 </style>
 </head>
 <body>
 
-<!-- 비밀번호 오버레이 -->
+<!-- 로그인 오버레이 -->
 <div id="auth-overlay" style="
   position:fixed;inset:0;background:#0f1117;
   display:flex;flex-direction:column;
   align-items:center;justify-content:center;
-  z-index:9999;gap:16px;">
-  <div style="font-size:22px;font-weight:700;color:#e8eaf0">AZ <span style="color:#5c6ef8">영업지도</span></div>
-  <div style="font-size:12px;color:#7b82a0;margin-bottom:8px">(주)에이젯시스템</div>
+  z-index:9999;gap:12px;">
+  <div style="font-size:24px;font-weight:700;color:#e8eaf0;margin-bottom:4px">AZ <span style="color:#5c6ef8">영업지도</span></div>
+  <div style="font-size:12px;color:#7b82a0;margin-bottom:12px">(주)에이젯시스템</div>
+  <select id="id-input" style="
+    padding:10px 16px;background:#1a1d27;border:1px solid #2e3247;
+    border-radius:8px;color:#e8eaf0;font-size:14px;outline:none;
+    width:220px;cursor:pointer;appearance:none;text-align:center;">
+    <option value="">사원명 선택</option>
+    <option value="송광훈">송광훈 (과장)</option>
+    <option value="강경현">강경현 (과장)</option>
+    <option value="정기태">정기태 (대리)</option>
+    <option value="이동현">이동현 (대리)</option>
+    <option value="서한결">서한결 (대리)</option>
+    <option value="나규호">나규호 (대리)</option>
+    <option value="김동국">김동국 (대리)</option>
+    <option value="김미남">김미남 (대리)</option>
+    <option value="임치현">임치현 (대리)</option>
+    <option value="신상명">신상명 (주임)</option>
+    <option value="심규현">심규현 (주임)</option>
+    <option value="류민상">류민상 (사원)</option>
+    <option value="조준헌">조준헌 (사원)</option>
+    <option value="백윤주">백윤주 (사원)</option>
+    <option value="황지환">황지환 (사원)</option>
+    <option value="천경준">천경준 (사원)</option>
+    <option value="최선영">최선영 (사원)</option>
+    <option value="김현우">김현우 (사원)</option>
+    <option value="김준">김준 (사원)</option>
+    <option value="이우석">이우석 (사원)</option>
+    <option value="박정운">박정운 (사원)</option>
+    <option value="AZ">AZ (공용)</option>
+  </select>
   <input id="pw-input" type="password" placeholder="비밀번호 입력"
     style="padding:10px 16px;background:#1a1d27;border:1px solid #2e3247;
     border-radius:8px;color:#e8eaf0;font-size:14px;outline:none;width:220px;text-align:center"
-    onkeydown="if(event.key==='Enter') checkPw()">
-  <button onclick="checkPw()"
+    onkeydown="if(event.key==='Enter') checkLogin()">
+  <button onclick="checkLogin()"
     style="padding:10px 32px;background:#5c6ef8;border:none;border-radius:8px;
-    color:white;font-size:14px;font-weight:600;cursor:pointer">
-    입력
+    color:white;font-size:14px;font-weight:600;cursor:pointer;width:220px">
+    로그인
   </button>
-  <div id="pw-error" style="color:#e84444;font-size:12px;display:none">비밀번호가 틀렸습니다.</div>
+  <div id="pw-error" style="color:#e84444;font-size:12px;display:none">사원명 또는 비밀번호가 틀렸습니다.</div>
 </div>
 
 <script>
-function checkPw() {
+const USERS = {
+  '송광훈':'12','강경현':'20','정기태':'26','이동현':'25',
+  '서한결':'15','나규호':'35','김동국':'19','김미남':'17',
+  '임치현':'02','신상명':'42','심규현':'10','류민상':'39',
+  '조준헌':'44','백윤주':'41','황지환':'37','천경준':'43',
+  '최선영':'31','김현우':'24','김준':'00','이우석':'00',
+  '박정운':'01','AZ':'00'
+};
+
+function checkLogin() {
+  const id = document.getElementById('id-input').value;
   const pw = document.getElementById('pw-input').value;
-  if (pw === '0308') {
-    document.getElementById('auth-overlay').style.display = 'none';
-    sessionStorage.setItem('az_auth', '1');
-  } else {
-    document.getElementById('pw-error').style.display = 'block';
-    document.getElementById('pw-input').value = '';
-    document.getElementById('pw-input').focus();
-  }
+  const err = document.getElementById('pw-error');
+
+  if (!id) { err.style.display='block'; err.textContent='사원명을 선택해주세요.'; return; }
+  if (USERS[id] !== pw) { err.style.display='block'; err.textContent='비밀번호가 틀렸습니다.'; document.getElementById('pw-input').value=''; return; }
+
+  err.style.display='none';
+  document.getElementById('auth-overlay').style.display='none';
+  sessionStorage.setItem('az_auth', '1');
+  sessionStorage.setItem('az_user', id);
+  window.AZ_USER = id;
+
+  // 헤더에 사원명 표시
+  document.getElementById('hstatus').textContent = `${id} 님 | 데이터 로딩 중...`;
 }
-// 세션 유지 (새로고침 시 재입력 불필요)
+
+// 세션 유지
 if (sessionStorage.getItem('az_auth') === '1') {
-  document.getElementById('auth-overlay').style.display = 'none';
+  document.getElementById('auth-overlay').style.display='none';
+  window.AZ_USER = sessionStorage.getItem('az_user');
 }
 </script>
 
@@ -185,7 +249,13 @@ if (sessionStorage.getItem('az_auth') === '1') {
 </header>
 
 <div class="main">
-  <div class="sidebar">
+  <div class="sidebar" id="sidebar">
+  <button id="sidebar-toggle" onclick="toggleSidebar()" style="
+    position:absolute;left:290px;top:50%;transform:translateY(-50%);
+    z-index:6;background:var(--surface);border:1px solid var(--border);
+    border-left:none;border-radius:0 6px 6px 0;
+    color:var(--muted);cursor:pointer;padding:12px 4px;font-size:12px;
+    transition:left .3s;">◀</button>
     <div class="sb-sec">
       <div class="sec-label">거래처 검색</div>
       <div class="srch">
@@ -210,6 +280,10 @@ if (sessionStorage.getItem('az_auth') === '1') {
     <div class="route-sec">
       <div class="sel-cnt">선택: <span id="selcnt">0</span>개</div>
       <button class="btn-route" id="btnRoute" onclick="calcRoute()" disabled>🗺️ 최적 경로 생성</button>
+      <div style="display:flex;gap:5px;margin-top:5px">
+        <button class="btn-clear" style="flex:1" onclick="savePlan()">💾 계획 저장</button>
+        <button class="btn-clear" style="flex:1" onclick="loadPlan()">📂 불러오기</button>
+      </div>
       <button class="btn-clear" onclick="clearSelection()">✕ 선택 초기화</button>
       <div class="rlist" id="rlist"></div>
     </div>
@@ -276,6 +350,34 @@ if (sessionStorage.getItem('az_auth') === '1') {
       <button class="cat" onclick="searchCat(this,'곱창',['곱창','막창'])">🔥 곱창</button>
       <button class="cat" onclick="searchCat(this,'할랄',['양꼬치','할랄','케밥','타코'])">🌙 할랄</button>
       <button class="cat" style="color:var(--red);border-color:var(--border)" onclick="clearCat()">✕</button>
+      <button class="cat" style="color:#f59e0b;border-color:#f59e0b" onclick="toggleAddForm()">✚ 직접 등록</button>
+    </div>
+
+    <!-- 직접 발굴 거래처 입력 폼 -->
+    <div id="add-form" style="display:none;position:absolute;top:60px;left:50%;transform:translateX(-50%);
+      z-index:6;background:var(--surface);border:1px solid var(--border);border-radius:10px;
+      padding:14px;box-shadow:0 4px 20px rgba(0,0,0,.4);min-width:300px;">
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:10px">✚ 거래처 직접 등록</div>
+      <input id="form-name" placeholder="업체명 *" style="width:100%;padding:7px 10px;background:var(--surface2);
+        border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;outline:none;margin-bottom:6px">
+      <input id="form-addr" placeholder="주소 *" style="width:100%;padding:7px 10px;background:var(--surface2);
+        border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;outline:none;margin-bottom:6px">
+      <select id="form-cat" style="width:100%;padding:7px 10px;background:var(--surface2);
+        border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;outline:none;margin-bottom:10px">
+        <option value="육가공">육가공</option>
+        <option value="식당">식당</option>
+        <option value="수산물">수산물</option>
+        <option value="식자재">식자재</option>
+        <option value="곱창">곱창</option>
+        <option value="할랄">할랄</option>
+        <option value="기타">기타</option>
+      </select>
+      <div style="display:flex;gap:6px">
+        <button onclick="submitAddForm()" style="flex:1;padding:7px;background:#27ae60;border:none;
+          border-radius:6px;color:white;font-size:12px;font-weight:600;cursor:pointer">등록</button>
+        <button onclick="toggleAddForm()" style="flex:1;padding:7px;background:var(--surface2);
+          border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:12px;cursor:pointer">취소</button>
+      </div>
     </div>
     <div id="map"></div>
     <div class="loading" id="loading">
@@ -393,8 +495,9 @@ async function loadAll() {
 
   const total = data.active.length + data.new.length + data.dormant.length;
   const withCoord = markers.active.length + markers.new.length + markers.dormant.length;
+  const userName = window.AZ_USER || sessionStorage.getItem('az_user') || '';
   document.getElementById('hstatus').textContent =
-    `기존 ${data.active.length} · 신규 ${data.new.length} · 휴면 ${data.dormant.length} (좌표 ${withCoord}/${total})`;
+    `${userName ? userName+' 님 | ' : ''}기존 ${data.active.length} · 신규 ${data.new.length} · 휴면 ${data.dormant.length}`;
 
   renderList();
 }
@@ -805,6 +908,24 @@ function clearCat() {
 
 function normName(n) { return String(n||'').replace(/\s+/g,'').trim(); }
 
+// 사이드패널 토글
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const btn = document.getElementById('sidebar-toggle');
+  const isHidden = sb.style.width === '0px';
+  if (isHidden) {
+    sb.style.width = '290px';
+    sb.style.overflow = 'hidden';
+    btn.textContent = '◀';
+    btn.style.left = '290px';
+  } else {
+    sb.style.width = '0px';
+    sb.style.overflow = 'hidden';
+    btn.textContent = '▶';
+    btn.style.left = '0px';
+  }
+}
+
 // 지도 마커에서 경로 추가/제거
 function toggleSelFromMap(type, idx) {
   toggleSel(type, idx);
@@ -816,6 +937,130 @@ function toggleSelFromMap(type, idx) {
     btn.textContent = isSel ? '✅ 경로에 추가됨' : '📍 경로 추가';
     btn.style.background = isSel ? '#3b6ef8' : '#5c6ef8';
   }
+}
+
+// ── 영업계획 저장/불러오기 ──
+async function savePlan() {
+  const user = window.AZ_USER || sessionStorage.getItem('az_user');
+  if (!user) { alert('로그인이 필요합니다.'); return; }
+
+  const allSel = [
+    ...selected.map(s => ({ name:s['거래처명'], address:s['주소'], type: s._sid?.split('_')[0]==='active'?'기존':s._sid?.split('_')[0]==='new'?'신규':'휴면' })),
+    ...searchSelected.map(s => ({ name:s['거래처명'], address:s['주소'], type:'신규영업처' }))
+  ];
+
+  if (!allSel.length) { alert('선택된 거래처가 없습니다.'); return; }
+
+  try {
+    const res = await fetch(WEBAPP_URL, {
+      method:'POST',
+      body: JSON.stringify({ action:'savePlan', user, items:allSel })
+    });
+    const json = await res.json();
+    alert(json.msg);
+  } catch(e) {
+    alert('저장 실패: ' + e.message);
+  }
+}
+
+async function loadPlan() {
+  const user = window.AZ_USER || sessionStorage.getItem('az_user');
+  if (!user) { alert('로그인이 필요합니다.'); return; }
+
+  try {
+    const res = await fetch(WEBAPP_URL, {
+      method:'POST',
+      body: JSON.stringify({ action:'loadPlan', user })
+    });
+    const json = await res.json();
+    if (!json.success || !json.data.length) { alert('오늘 저장된 영업계획이 없습니다.'); return; }
+
+    // 기존 선택 초기화
+    selected = []; searchSelected = [];
+
+    // 불러온 거래처 매칭
+    json.data.forEach(item => {
+      const name = item['거래처명'];
+      const type = item['유형'] === '기존' ? 'active' : item['유형'] === '신규' ? 'new' : item['유형'] === '휴면' ? 'dormant' : null;
+      if (type) {
+        const idx = data[type].findIndex(d => d['거래처명'] === name);
+        if (idx >= 0) {
+          const d = data[type][idx];
+          d._sid = type+'_'+idx;
+          selected.push(d);
+        }
+      } else {
+        // 신규영업처는 searchSelected에
+        searchSelected.push({
+          거래처명: name, 주소: item['주소'],
+          위도: '', 경도: '', _pid: 'plan_'+Math.random().toString(36).substr(2,6)
+        });
+      }
+    });
+
+    document.getElementById('selcnt').textContent = selected.length + searchSelected.length;
+    document.getElementById('btnRoute').disabled = false;
+    renderList();
+    renderRoute();
+    alert(`영업계획 불러오기 완료 (${json.data.length}건)`);
+  } catch(e) {
+    alert('불러오기 실패: ' + e.message);
+  }
+}
+
+// ── 직접 발굴 거래처 등록 ──
+function toggleAddForm() {
+  const form = document.getElementById('add-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function submitAddForm() {
+  const name = document.getElementById('form-name').value.trim();
+  const addr = document.getElementById('form-addr').value.trim();
+  const cat  = document.getElementById('form-cat').value;
+  const user = window.AZ_USER || sessionStorage.getItem('az_user') || 'AZ';
+
+  if (!name || !addr) { alert('업체명과 주소를 입력해주세요.'); return; }
+
+  // 카카오 주소 검색으로 좌표 변환
+  const geocoder = new kakao.maps.services.Geocoder();
+  geocoder.addressSearch(addr, async (result, status) => {
+    let lat = '', lng = '';
+    if (status === kakao.maps.services.Status.OK) {
+      lat = result[0].y;
+      lng = result[0].x;
+      // 지도에 마커 표시
+      const m = makeMarker(lat, lng, COLORS.search, visible.search);
+      m._place = { place_name: name, road_address_name: addr };
+      kakao.maps.event.addListener(m, 'click', () => {
+        if(curIW) { try{curIW.close();}catch(e){curIW.setMap(null);} curIW=null; }
+        const c = `<div class="iw">
+          <div class="iw-name">${name}</div>
+          <div class="iw-addr">${addr}</div>
+          <span class="iw-badge" style="background:rgba(232,68,68,.15);color:#e84444">${cat}</span>
+        </div>`;
+        curIW = new kakao.maps.InfoWindow({content:c, removable:true});
+        curIW.open(map, m);
+      });
+      markers.search.push(m);
+      map.setCenter(new kakao.maps.LatLng(lat, lng));
+    }
+
+    // 구글시트 등록
+    try {
+      const res = await fetch(WEBAPP_URL, {
+        method:'POST',
+        body: JSON.stringify({ action:'addProspect', name, address:addr, category:cat, lat, lng, registeredBy:user })
+      });
+      const json = await res.json();
+      alert(json.msg);
+      toggleAddForm();
+      document.getElementById('form-name').value = '';
+      document.getElementById('form-addr').value = '';
+    } catch(e) {
+      alert('등록 실패: ' + e.message);
+    }
+  });
 }
 
 function closeOverlay() {
@@ -857,10 +1102,11 @@ async function registerProspect(name, addr, cat, lat, lng) {
     alert('Apps Script Web App URL을 설정해주세요.');
     return;
   }
+  const user = window.AZ_USER || sessionStorage.getItem('az_user') || 'AZ';
   try {
     const res = await fetch(WEBAPP_URL, {
       method: 'POST',
-      body: JSON.stringify({ action:'addProspect', name, address:addr, category:cat, lat, lng })
+      body: JSON.stringify({ action:'addProspect', name, address:addr, category:cat, lat, lng, registeredBy:user })
     });
     const json = await res.json();
     alert(json.msg);
