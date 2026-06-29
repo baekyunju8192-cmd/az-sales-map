@@ -799,15 +799,16 @@ function switchTab(t) {
 function renderList() {
   const q = document.getElementById('srch').value.toLowerCase();
   // 검색어 있으면 전체 검색, 없으면 현재 지도 영역만
+  const myName = window.AZ_USER || localStorage.getItem('az_user') || '';
+  
   const allItems = data[curTab].filter(r => {
     const nameMatch = !q || r['거래처명'].toLowerCase().includes(q);
-    if (q) return nameMatch;
-    return nameMatch && r._inBounds !== false;
+    if (q) return nameMatch; // 검색어 있으면 지역 필터 무시
+    return nameMatch && r._inBounds !== false; // 지역 필터 적용
   });
 
-  // 내 담당 거래처 상단 우선 정렬
-  const myName = window.AZ_USER || localStorage.getItem('az_user') || '';
-  const myItems = myName ? allItems.filter(r => (r['담당자']||'').includes(myName)) : [];
+  // bounds 필터된 결과 안에서 내 담당 우선 정렬
+  const myItems    = myName ? allItems.filter(r => (r['담당자']||'').includes(myName)) : [];
   const otherItems = myName ? allItems.filter(r => !(r['담당자']||'').includes(myName)) : allItems;
   const items = [...myItems, ...otherItems];
   const el = document.getElementById('clist');
