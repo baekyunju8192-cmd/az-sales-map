@@ -1229,7 +1229,7 @@ function switchTab(t) {
 
 // ── 목록 렌더링 ──
 function renderList() {
-  const q = document.getElementById('srch').value.toLowerCase();
+  const q = document.getElementById('srch').value.toLowerCase().replace(/\s+/g, '');
   const myName = window.AZ_USER || localStorage.getItem('az_user') || '';
 
   // 전체 데이터에서 우선순위 정렬
@@ -1238,7 +1238,7 @@ function renderList() {
   // ③ 현재 지역 + 타 담당
   // ④ 타지역 + 내 담당
   // ⑤ 나머지 전체
-  const isMatch    = r => !q || (r['거래처명']||'').toLowerCase().includes(q);
+  const isMatch    = r => !q || (r['거래처명']||'').toLowerCase().replace(/\s+/g, '').includes(q);
   const isInBounds = r => r._inBounds !== false;
   const isMine     = r => myName && (r['담당자']||'').includes(myName);
 
@@ -2874,7 +2874,7 @@ async function mLoadProspectMarkers2() {
 }
 
 function mRenderSearch() {
-  var q = document.getElementById('m-srch').value.toLowerCase().trim();
+  var q = document.getElementById('m-srch').value.toLowerCase().trim().replace(/\s+/g, '');
   var el = document.getElementById('m-search-list');
   if (!q || q.length < 2) { el.innerHTML='<div class="m-empty">2글자 이상 입력하세요</div>'; return; }
   var myName = window.AZ_USER||localStorage.getItem('az_user')||'';
@@ -2886,7 +2886,7 @@ function mRenderSearch() {
   types.forEach(function(t){
     if (!data[t]) return;
     data[t].forEach(function(r, idx){
-      if ((r['거래처명']||'').toLowerCase().includes(q)) {
+      if ((r['거래처명']||'').toLowerCase().replace(/\s+/g, '').includes(q)) {
         results.push(Object.assign({},r,{_mtype:t,_idx:idx}));
       }
     });
