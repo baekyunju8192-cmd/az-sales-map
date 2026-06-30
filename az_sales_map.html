@@ -3171,12 +3171,26 @@ function mGoToMyLocation() {
   );
 }
 
+// 모바일 초기화 — 삼성/크롬/카톡 등 브라우저 타이밍 차이 대응
+function tryInitMobile() {
+  if (!isMobile()) return;
+  if (mMap2) return; // 이미 초기화됨
+  initMobile();
+}
+
+// DOMContentLoaded + load 둘 다 걸어서 타이밍 놓치지 않도록
+document.addEventListener('DOMContentLoaded', function() {
+  if (isMobile()) setTimeout(tryInitMobile, 300);
+});
+
 window.addEventListener('load', function() {
-  if (isMobile()) setTimeout(initMobile, 600);
+  if (isMobile()) setTimeout(tryInitMobile, 600);
+  // 한 번 더 — 카카오 SDK 늦게 뜨는 경우 대응
+  if (isMobile()) setTimeout(tryInitMobile, 1500);
 });
 
 window.addEventListener('resize', function() {
-  if (isMobile() && !mMap2) setTimeout(initMobile, 300);
+  if (isMobile() && !mMap2) setTimeout(tryInitMobile, 300);
 });
 </script>
 
