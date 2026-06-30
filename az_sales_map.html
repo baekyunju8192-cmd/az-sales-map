@@ -692,6 +692,7 @@ if (localStorage.getItem('az_auth') === '1') {
   </div>
   <div class="hright" id="hstatus">데이터 로딩 중...</div>
 </header>
+<div id="load-fail-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#e84444;color:#fff;font-size:13px;font-weight:600;padding:10px 14px;text-align:center"></div>
 
 <div class="main">
   <div class="sidebar" id="sidebar">
@@ -859,6 +860,7 @@ const CAT_EMOJI = {
 // ── 상태 ──
 let map, ps;
 let data    = { active:[], new:[], dormant:[] };
+let loadFailed = { active:false, new:false, dormant:false };
 let markers = { active:[], new:[], dormant:[], search:[] };
 let visible = { active:true, new:true, dormant:true, search:true };
 let selected = [];
@@ -883,6 +885,28 @@ let searchSelected = [];
 
 let polylines = [];
 let top5 = {};
+
+// 한글 입력(IME) 조합 완료 시 input 이벤트가 누락되는 모바일 브라우저 대응:
+// input + compositionend + 짧은 안전망(타이핑 멈춘 후 재확인)을 모두 묶어서
+// 마지막 글자가 무엇이든 검색 결과가 항상 최신 입력값을 반영하도록 보장
+function bindRobustSearchInput(inputEl, renderFn) {
+  if (!inputEl) return;
+  let lastValue = null;
+  let safetyTimer = null;
+  const trigger = () => {
+    lastValue = inputEl.value;
+    renderFn();
+  };
+  inputEl.addEventListener('input', trigger);
+  inputEl.addEventListener('compositionend', trigger);
+  inputEl.addEventListener('input', () => {
+    clearTimeout(safetyTimer);
+    safetyTimer = setTimeout(() => {
+      if (inputEl.value !== lastValue) trigger();
+    }, 150);
+  });
+  inputEl.addEventListener('blur', trigger);
+}
 
 // ── 초기화 ──
 window.onload = async () => {
@@ -941,21 +965,50 @@ window.onload = async () => {
   await loadAll();
   document.getElementById('loading').classList.add('hide');
 
-  // 검색창 이벤트 리스너
-  document.getElementById('srch').addEventListener('input', renderList);
+  // 검색창 이벤트 리스너 (한글 조합 누락 방지 안전 리스너)
+  bindRobustSearchInput(document.getElementById('srch'), renderList);
 };
 
 // ── 데이터 로드 ──
+// 네트워크 일시 오류 대비 재시도 fetch (최대 3회, 점진 대기)
+async function fetchCsvWithRetry(url, maxRetry = 3) {
+  let lastErr;
+  for (let attempt = 1; attempt <= maxRetry; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const txt = await res.text();
+      if (!txt || !txt.trim()) throw new Error('empty response');
+      return txt;
+    } catch (e) {
+      lastErr = e;
+      if (attempt < maxRetry) await new Promise(r => setTimeout(r, attempt * 800));
+    }
+  }
+  throw lastErr;
+}
+
 async function loadAll() {
   const types = ['active','new','dormant'];
+  const labels = { active:'기존', new:'신규', dormant:'휴면' };
   for (const t of types) {
-    setLoadTxt(`${t === 'active' ? '기존' : t === 'new' ? '신규' : '휴면'}거래처 로딩 중...`);
+    setLoadTxt(`${labels[t]}거래처 로딩 중...`);
     try {
       const url = `https://docs.google.com/spreadsheets/d/${SS_ID}/export?format=csv&gid=${GID[t]}`;
-      const txt = await fetch(url).then(r => r.text());
-      data[t] = parseCSV(txt);
-    } catch(e) { console.error(t, e); }
+      const txt = await fetchCsvWithRetry(url);
+      const parsed = parseCSV(txt);
+      // 빈 결과로 기존 데이터를 덮어쓰지 않음 (이미 데이터가 있던 경우 보존)
+      if (parsed.length === 0 && data[t].length > 0) {
+        throw new Error('파싱 결과가 비어있어 기존 데이터 유지');
+      }
+      data[t] = parsed;
+      loadFailed[t] = false;
+    } catch(e) {
+      console.error(t, e);
+      loadFailed[t] = true;
+    }
   }
+  showLoadFailBanner();
 
   // 거래처별주요품목 로드
   try {
@@ -984,6 +1037,38 @@ async function loadAll() {
 }
 
 function setLoadTxt(t) { document.getElementById('loadtxt').textContent = t; }
+
+// 일부 시트 로딩 실패 시 명확하게 알리고 재시도 버튼 제공 (조용히 빈 데이터로 넘어가지 않음)
+function showLoadFailBanner() {
+  const labels = { active:'기존', new:'신규', dormant:'휴면' };
+  const failedTypes = Object.keys(loadFailed).filter(t => loadFailed[t]);
+  const banner = document.getElementById('load-fail-banner');
+  if (!failedTypes.length) { banner.style.display = 'none'; return; }
+  const names = failedTypes.map(t => labels[t]).join(', ');
+  banner.innerHTML = `⚠️ ${names} 거래처 데이터 로딩에 실패했습니다. 해당 거래처는 검색/지도에서 누락될 수 있습니다.
+    <button onclick="retryFailedLoads()" style="margin-left:10px;background:#fff;color:#e84444;border:none;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">다시 시도</button>`;
+  banner.style.display = 'block';
+}
+
+async function retryFailedLoads() {
+  const banner = document.getElementById('load-fail-banner');
+  const labels = { active:'기존', new:'신규', dormant:'휴면' };
+  const failedTypes = Object.keys(loadFailed).filter(t => loadFailed[t]);
+  for (const t of failedTypes) {
+    try {
+      setLoadTxt(`${labels[t]}거래처 재시도 중...`);
+      const url = `https://docs.google.com/spreadsheets/d/${SS_ID}/export?format=csv&gid=${GID[t]}`;
+      const txt = await fetchCsvWithRetry(url);
+      const parsed = parseCSV(txt);
+      if (parsed.length === 0) throw new Error('empty parsed result');
+      data[t] = parsed;
+      loadFailed[t] = false;
+    } catch(e) { console.error(t, e); }
+  }
+  placeMarkers('active'); placeMarkers('new'); placeMarkers('dormant');
+  filterListByBounds();
+  showLoadFailBanner();
+}
 
 // ── CSV 파싱 ──
 function parseCSV(txt) {
@@ -2315,7 +2400,7 @@ function initMobile() {
   mPlaceAllMarkers();
 
   var srch = document.getElementById('m-srch');
-  if (srch) srch.addEventListener('input', mRenderSearch);
+  if (srch) bindRobustSearchInput(srch, mRenderSearch);
 
   var srchList = document.getElementById('m-search-list');
   if (srchList) srchList.addEventListener('click', function(e) {
@@ -2848,12 +2933,16 @@ function mRenderSearch() {
       }
     });
   });
+  console.log('[검색진단]', '쿼리:', q,
+    '| 로딩된 전체:', {active:(data.active||[]).length,new:(data.new||[]).length,dormant:(data.dormant||[]).length},
+    '| 매칭됨:', results.length,
+    '| 매칭목록:', results.map(r=>r['거래처명']));
   var mine = results.filter(function(r){return myName&&(r['담당자']||'').includes(myName);});
   var others = results.filter(function(r){return !myName||!(r['담당자']||'').includes(myName);});
   results = mine.concat(others);
   if (!results.length) { el.innerHTML='<div class="m-empty">검색 결과 없음</div>'; return; }
 
-  el.innerHTML = results.slice(0,40).map(function(item){
+  el.innerHTML = results.map(function(item){
     var t = item._mtype, idx = item._idx;
     var isMine2 = myName&&(item['담당자']||'').includes(myName);
     var lat = parseFloat(item['위도']), lng = parseFloat(item['경도']);
