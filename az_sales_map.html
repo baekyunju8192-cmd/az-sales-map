@@ -868,7 +868,7 @@ if (localStorage.getItem('az_auth') === '1') {
 const SS_ID = '1mIXExxFRuZmcy7VKEe_w63Yu1QOqT5r8qondm4k91-c';
 const GID = { active:'0', new:'2043143991', dormant:'1615833992' };
 const COMPANY = { lat:35.2162723, lng:126.8245735, name:'(주)에이젯시스템' };
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbz2YnXVi1NROu_24URgvt9vYXs4rnoS6PXYoD1-WOBdvbcJS9LgY5ylKpC-Ho37ByN-VA/exec'; // Apps Script 배포 후 URL 입력
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxT4UAHFE0UVxNPkQlyBPSezMp_pw3dU6oqB-ivXO4uAYapR7wBQNeKED-XEIMVdNhL-w/exec'; // Apps Script 배포 후 URL 입력
 const COLORS = { active:'#3b82f6', new:'#27ae60', dormant:'#888888', search:'#e84444' };
 const CAT_EMOJI = {
   '육가공': '🏭', '식당': '🍽️', '수산물': '🐟',
@@ -2722,6 +2722,10 @@ function mShowAllView() {
           : '<button class="mav-reg" data-name="' + nameQ + '" data-addr="' + addrQ + '" data-cat="' + catQ + '" data-lat="' + p.lat + '" data-lng="' + p.lng + '" style="flex:1;padding:8px 4px;background:#5c6ef8;border:none;border-radius:7px;color:white;font-size:11px;font-weight:600;cursor:pointer">📋 등록</button>')
       +   '<button class="mav-visit" data-name="' + nameQ + '" data-addr="' + addrQ + '" data-cat="' + catQ + '" data-lat="' + p.lat + '" data-lng="' + p.lng + '" data-visited="' + isVis + '" style="flex:1;padding:8px 4px;background:' + (isVis?'#27ae60':'#2e3247') + ';border:1px solid ' + (isVis?'#27ae60':'#3a4060') + ';border-radius:7px;color:' + (isVis?'white':'#7b82a0') + ';font-size:11px;cursor:pointer">' + (isVis?'✓ 방문됨':'✅ 방문체크') + '</button>'
       +   '<a class="mav-tmap" data-tmap="' + tMapUrl + '" data-twebmap="' + tMapWeb + '" style="flex:1;padding:8px 4px;background:#1b6cf2;border:none;border-radius:7px;color:white;font-size:11px;font-weight:600;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center">🗺️ T맵</a>'
+      + '</div>'
+      + '<div style="display:flex;gap:6px;margin-top:4px">'
+      +   '<input id="mav-memo-' + i + '" placeholder="메모 입력..." style="flex:1;padding:8px 10px;background:#0f1117;border:1px solid #2e3247;border-radius:7px;color:#e8eaf0;font-size:11px;outline:none">'
+      +   '<button class="mav-memo" data-name="' + nameQ + '" data-addr="' + addrQ + '" data-cat="' + catQ + '" data-lat="' + p.lat + '" data-lng="' + p.lng + '" data-idx="' + i + '" style="padding:8px 12px;background:#e67e22;border:none;border-radius:7px;color:white;font-size:11px;font-weight:600;cursor:pointer">작성</button>'
       + '</div>';
 
     track.appendChild(card);
@@ -2742,6 +2746,15 @@ function mShowAllView() {
       e.preventDefault();
       var url = /Android|iPhone/i.test(navigator.userAgent) ? tmap.dataset.tmap : tmap.dataset.twebmap;
       window.open(url, '_blank');
+      return;
+    }
+    var memo = e.target.closest('.mav-memo');
+    if (memo) {
+      var memoVal = document.getElementById('mav-memo-' + memo.dataset.idx);
+      if (memoVal && memoVal.value.trim()) {
+        mUpsertProspect('memo', memo.dataset.name, memo.dataset.addr, memo.dataset.cat, parseFloat(memo.dataset.lat), parseFloat(memo.dataset.lng), false, memoVal.value.trim());
+        memoVal.value = '';
+      }
       return;
     }
   };
@@ -3023,6 +3036,10 @@ function mShowPlanCards(planData) {
       + '<div style="display:flex;gap:6px;margin-top:auto">'
       +   '<button class="mpc-visit" data-name="' + (item['거래처명']||'').replace(/"/g,'&quot;') + '" data-visited="' + isVisited + '" style="flex:1;padding:8px 4px;background:' + (isVisited?'#27ae60':'#2e3247') + ';border:1px solid ' + (isVisited?'#27ae60':'#3a4060') + ';border-radius:7px;color:' + (isVisited?'white':'#7b82a0') + ';font-size:11px;cursor:pointer">' + (isVisited?'✓ 방문됨':'✅ 방문체크') + '</button>'
       +   '<a class="mpc-tmap" data-tmap="' + tMapUrl + '" data-twebmap="' + tMapWeb + '" style="flex:1;padding:8px 4px;background:#1b6cf2;border:none;border-radius:7px;color:white;font-size:11px;font-weight:600;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;cursor:pointer">🗺️ T맵</a>'
+      + '</div>'
+      + '<div style="display:flex;gap:6px;margin-top:4px">'
+      +   '<input id="mpc-memo-' + i + '" placeholder="메모 입력..." style="flex:1;padding:8px 10px;background:#0f1117;border:1px solid #2e3247;border-radius:7px;color:#e8eaf0;font-size:11px;outline:none">'
+      +   '<button class="mpc-memo" data-name="' + (item['거래처명']||'').replace(/"/g,'&quot;') + '" data-idx="' + i + '" style="padding:8px 12px;background:#e67e22;border:none;border-radius:7px;color:white;font-size:11px;font-weight:600;cursor:pointer">작성</button>'
       + '</div>';
 
     track.appendChild(card);
@@ -3047,6 +3064,17 @@ function mShowPlanCards(planData) {
       e.preventDefault();
       var url = /Android|iPhone/i.test(navigator.userAgent) ? tmap.dataset.tmap : tmap.dataset.twebmap;
       window.open(url, '_blank');
+      return;
+    }
+    var memo = e.target.closest('.mpc-memo');
+    if (memo) {
+      var memoInput = document.getElementById('mpc-memo-' + memo.dataset.idx);
+      if (memoInput && memoInput.value.trim()) {
+        var user2 = window.AZ_USER||localStorage.getItem('az_user')||'AZ';
+        fetch(WEBAPP_URL, {method:'POST', mode:'no-cors', body: JSON.stringify({action:'upsertProspect', name:memo.dataset.name, address:'', prospectAction:'memo', memo:memoInput.value.trim(), registeredBy:user2})});
+        alert('메모 작성 완료');
+        memoInput.value = '';
+      }
       return;
     }
   };
