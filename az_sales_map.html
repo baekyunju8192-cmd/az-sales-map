@@ -2553,7 +2553,7 @@ function mDoSearch2(keywords) {
   mMobMarkers.search.forEach(function(m){m.setMap(null);});
   mMobMarkers.search = [];
   mCatPlaces = [];
-  mHideAllView();
+  // mHideAllView는 여기서 호출 안 함 — idle 재검색 시 패널 닫히지 않게
   var center = mMap2.getCenter();
   var minLat=34.3, maxLat=35.95, minLng=126.1, maxLng=127.9;
   var opts = { location:center, radius:5000, size:15 };
@@ -2764,7 +2764,6 @@ function mHideAllView() {
 
 function mFocusPlace(lat, lng) {
   mMap2.panTo(new kakao.maps.LatLng(lat, lng));
-  mHideAllView();
 }
 
 function mClearCat2() {
