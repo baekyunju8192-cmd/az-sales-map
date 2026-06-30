@@ -1529,7 +1529,10 @@ function toggleSel(type, idx) {
 
   const lat = parseFloat(item['위도']);
   const lng = parseFloat(item['경도']);
-  if (lat && lng) map.panTo(new kakao.maps.LatLng(lat, lng));
+  if (lat && lng) {
+    map.panTo(new kakao.maps.LatLng(lat, lng));
+    setStarOverlayPC(lat, lng);
+  }
 }
 
 function clearSelection() {
@@ -1542,6 +1545,7 @@ function clearSelection() {
   document.getElementById('rlist').innerHTML = '';
   const existing = document.getElementById('btn-kakao-nav');
   if (existing) existing.remove();
+  if (starOverlayPC) { starOverlayPC.setMap(null); starOverlayPC = null; }
   renderList();
 }
 
@@ -3032,24 +3036,25 @@ function mShowPlanCards(planData) {
     var lng = parseFloat(item['경도']);
     var isVisited = item['방문완료']===true || item['방문완료']==='TRUE';
 
-    var color = isVisited ? '#27ae60' : '#3b82f6';
+    var isExisting2 = item['유형'] === '기존';
+    var color = isExisting2 ? '#3b82f6' : (isVisited ? '#27ae60' : '#3b82f6');
     var m = mMakeMarker2(lat, lng, color);
     mPlanMarkers.push(m);
 
-    // 간소화된 작은 칩 카드 — 거래처명 + 방문체크 + T맵만
+    // 간소화된 작은 칩 카드
     var card = document.createElement('div');
     card.dataset.idx = i;
     card.dataset.lat = lat;
     card.dataset.lng = lng;
-    var borderColor = isVisited ? '#27ae60' : '#3b82f6';
+    var borderColor = isExisting2 ? '#3b82f6' : (isVisited ? '#27ae60' : '#3b82f6');
     card.style.cssText = 'flex:0 0 auto;scroll-snap-align:start;background:#1a1d27;border:1px solid ' + borderColor + ';border-radius:20px;padding:6px 6px 6px 12px;display:flex;align-items:center;gap:6px;white-space:nowrap;';
 
     var tMapUrl = 'tmap://route?goalname=' + encodeURIComponent(item['거래처명']||'') + '&goaly=' + lat + '&goalx=' + lng;
     var tMapWeb = 'https://tmap.life/' + lat + ',' + lng;
 
     card.innerHTML = ''
-      + '<span style="font-size:12px;font-weight:600;color:#e8eaf0">' + (isVisited?'✅ ':'') + (item['거래처명']||'') + '</span>'
-      +   '<button class="mpc-visit" data-name="' + (item['거래처명']||'').replace(/"/g,'&quot;') + '" data-visited="' + isVisited + '" style="padding:5px 9px;background:' + (isVisited?'#27ae60':'#2e3247') + ';border:none;border-radius:14px;color:' + (isVisited?'white':'#7b82a0') + ';font-size:10px;cursor:pointer;flex-shrink:0">' + (isVisited?'✓':'방문') + '</button>'
+      + '<span style="font-size:12px;font-weight:600;color:#e8eaf0">' + (isVisited&&!isExisting2?'✅ ':'') + (item['거래처명']||'') + '</span>'
+      + (isExisting2 ? '' : '<button class="mpc-visit" data-name="' + (item['거래처명']||'').replace(/"/g,'&quot;') + '" data-visited="' + isVisited + '" style="padding:5px 9px;background:' + (isVisited?'#27ae60':'#2e3247') + ';border:none;border-radius:14px;color:' + (isVisited?'white':'#7b82a0') + ';font-size:10px;cursor:pointer;flex-shrink:0">' + (isVisited?'✓':'방문') + '</button>')
       +   '<a class="mpc-tmap" data-tmap="' + tMapUrl + '" data-twebmap="' + tMapWeb + '" style="padding:5px 9px;background:#1b6cf2;border-radius:14px;color:white;font-size:11px;text-decoration:none;cursor:pointer;flex-shrink:0">🗺️</a>';
 
     track.appendChild(card);
@@ -3109,9 +3114,9 @@ async function mLoadPlan2() {
     var json = await res.json();
     if (!json.success||!json.data.length) { alert('오늘 저장된 영업계획이 없습니다.'); return; }
     mPlanData = json.data;
-    mUpdatePlanProgress2();
-    mRenderPlanList2();
-    mShowPlanCards(json.data); // 카드 + 마커 표시
+    mShowPlanCards(json.data); // 칩 카드 + 마커 표시
+    // 영업계획 탭 패널 닫고 지도로 전환 (이중 표시 방지)
+    mSwitchTab('map');
   } catch(e) { alert('불러오기 실패: '+e.message); }
 }
 
