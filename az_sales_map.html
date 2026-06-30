@@ -2344,7 +2344,9 @@ var mMobMarkers = { active:[], new2:[], dormant:[], search:[], prospect:[] };
 var mPolylines2 = [];
 var mCurIW2 = null;
 
-function isMobile() { return window.innerWidth <= 768; }
+function isMobile() {
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768;
+}
 
 function initMobile() {
   if (!isMobile()) return;
