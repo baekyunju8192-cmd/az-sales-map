@@ -96,6 +96,14 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
 .cat.on { background:var(--blue); border-color:var(--blue); color:white; font-weight:600; }
 .cat.loading { opacity:.6; cursor:wait; }
 
+/* 식당 하위 드롭다운 (그룹 5개만 노출, region-dropdown과 동일 패턴) */
+.cat-group { position:relative; }
+.cat-dropdown { position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%); background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:6px; min-width:120px; box-shadow:0 4px 16px rgba(0,0,0,.4); visibility:hidden; opacity:0; z-index:10; display:flex; flex-direction:column; gap:3px; }
+.cat-group.open .cat-dropdown { visibility:visible; opacity:1; }
+.cat-sub { padding:5px 10px; background:none; border:1px solid var(--border); border-radius:6px; color:var(--muted); font-size:11px; cursor:pointer; transition:all .15s; text-align:center; white-space:nowrap; }
+.cat-sub:hover { border-color:var(--blue); color:var(--text); }
+.cat-sub.on { background:var(--blue); border-color:var(--blue); color:white; font-weight:600; }
+
 /* 인포윈도우 */
 .iw { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; min-width:170px; max-width:230px; box-shadow:0 4px 16px rgba(0,0,0,.5); }
 .iw-name { font-size:13px; font-weight:600; margin-bottom:3px; color:#e8eaf0; }
@@ -136,6 +144,7 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
   .hdiv { display:none; }
   .legend { display:none; }
   .hright { font-size:10px; flex-shrink:0; white-space:nowrap; margin-left:auto; }
+  #logout-btn { flex-shrink:0; padding:4px 9px; font-size:10px; margin-left:6px; }
 
   /* PC 레이아웃 숨김 */
   .main { display:none !important; }
@@ -310,6 +319,38 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
     text-align:center;
   }
   .m-cat-btn.active { background:#e84444; }
+
+  /* 식당 하위 드롭다운 */
+  .m-cat-group { position:relative; }
+  .m-cat-dropdown {
+    position:absolute;
+    top:calc(100% + 6px);
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:6px;
+    display:none;
+    flex-direction:column;
+    gap:4px;
+    z-index:20;
+    box-shadow:0 4px 16px rgba(0,0,0,.3);
+    min-width:110px;
+  }
+  .m-cat-group.open .m-cat-dropdown { display:flex; }
+  .m-cat-sub {
+    padding:6px 8px;
+    background:rgba(15,17,23,0.85);
+    border:none;
+    border-radius:14px;
+    color:white;
+    font-size:11px;
+    cursor:pointer;
+    white-space:nowrap;
+    text-align:center;
+  }
+  .m-cat-sub.active { background:#e84444; }
 
   /* GPS 버튼 */
   #m-gps-btn {
@@ -687,6 +728,14 @@ function checkLogin() {
   document.getElementById('hstatus').textContent = `${id} 님 | 데이터 로딩 중...`;
 }
 
+function logout() {
+  if (!confirm('로그아웃 하시겠습니까?\n저장하지 않은 메모·영업계획 입력은 사라집니다.')) return;
+  localStorage.removeItem('az_auth');
+  localStorage.removeItem('az_user');
+  window.AZ_USER = null;
+  location.reload();
+}
+
 // 로컬스토리지에 저장된 이름 자동 입력
 const savedUser = localStorage.getItem('az_user');
 if (savedUser) {
@@ -718,6 +767,10 @@ if (localStorage.getItem('az_auth') === '1') {
     </div>
   </div>
   <div class="hright" id="hstatus">데이터 로딩 중...</div>
+  <button id="logout-btn" onclick="logout()" style="
+    margin-left:10px;padding:5px 12px;background:var(--surface2);
+    border:1px solid var(--border);border-radius:6px;color:var(--muted);
+    font-size:11px;cursor:pointer;white-space:nowrap;" title="로그아웃">로그아웃</button>
 </header>
 <div id="load-fail-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#e84444;color:#fff;font-size:13px;font-weight:600;padding:10px 14px;text-align:center"></div>
 
@@ -828,11 +881,19 @@ if (localStorage.getItem('az_auth') === '1') {
 
     <div class="cat-bar">
       <button class="cat" onclick="searchCat(this,'육가공',['육가공장','육가공품','양념육','가공육'])">🏭 육가공</button>
-      <button class="cat" onclick="searchCat(this,'식당',['샤브샤브','무한리필','기사식당','뷔페','함바'])">🍽️ 식당</button>
+      <div class="cat-group" id="cg-restaurant">
+        <button class="cat" onclick="toggleCatGroup('restaurant')">🍽️ 식당 ▾</button>
+        <div class="cat-dropdown">
+          <button class="cat-sub" onclick="searchCatGroup(this,'식당',['갈비탕','설렁탕','곰탕'])">탕류</button>
+          <button class="cat-sub" onclick="searchCatGroup(this,'식당',['스테이크','무한리필','고깃집'])">구이류</button>
+          <button class="cat-sub" onclick="searchCatGroup(this,'식당',['샤브','무한리필뷔페','뷔페','기사식당','함바'])">샤브/뷔페</button>
+          <button class="cat-sub" onclick="searchCatGroup(this,'식당',['꼬리','사골','우족'])">꼬리우족</button>
+          <button class="cat-sub" onclick="searchCatGroup(this,'식당',['족발','보쌈','수육'])">족발보쌈</button>
+        </div>
+      </div>
       <button class="cat" onclick="searchCat(this,'수산물',['수산물','생선구이'])">🐟 수산물</button>
       <button class="cat" onclick="searchCat(this,'식자재',['식자재마트'])">🛒 식자재</button>
       <button class="cat" onclick="searchCat(this,'곱창',['곱창','막창'])">🫀 곱창</button>
-      <button class="cat" onclick="searchCat(this,'부산물',['감자탕','등뼈','목뼈','꼬리','순대','머리고기','사골','족발','보쌈'])">🦴 부산물</button>
       <button class="cat" onclick="searchCat(this,'할랄',['양꼬치','할랄','케밥','타코'])">🐑 할랄</button>
       <button class="cat" style="color:var(--red);border-color:var(--border)" onclick="clearCat()">✕</button>
       <button class="cat" style="color:#f59e0b;border-color:#f59e0b" onclick="toggleAddForm()">✚ 직접 등록</button>
@@ -881,7 +942,7 @@ const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxT4UAHFE0UVxNPkQlyB
 const COLORS = { active:'#3b82f6', new:'#27ae60', dormant:'#888888', search:'#e84444' };
 const CAT_EMOJI = {
   '육가공': '🏭', '식당': '🍽️', '수산물': '🐟',
-  '식자재': '🛒', '곱창': '🫀', '부산물': '🦴', '할랄': '🐑', 'default': '📍'
+  '식자재': '🛒', '곱창': '🫀', '할랄': '🐑', 'default': '📍'
 };
 
 // ── 상태 ──
@@ -1260,13 +1321,13 @@ function showIW(marker, item, type) {
   const isSel = selected.some(s=>s._sid===sid);
 
   const c = `<div class="iw">
-    <div class="iw-name">${name}</div>
-    <div class="iw-addr">${addr}</div>
+    <div class="iw-name">${escHtml(name)}</div>
+    <div class="iw-addr">${escHtml(addr)}</div>
     <div class="iw-row">
       <span class="iw-badge" style="background:${bColor};color:${tColor}">${label}</span>
-      ${biz?`<span class="iw-mgr">${biz}</span>`:''}
-      ${mgr?`<span class="iw-mgr">· ${mgr}</span>`:''}
-      ${date?`<span class="iw-mgr">· ${date}</span>`:''}
+      ${biz?`<span class="iw-mgr">${escHtml(biz)}</span>`:''}
+      ${mgr?`<span class="iw-mgr">· ${escHtml(mgr)}</span>`:''}
+      ${date?`<span class="iw-mgr">· ${escHtml(date)}</span>`:''}
     </div>
     ${t5?`<div class="iw-top5"><b>주요품목</b>${t5}</div>`:''}
     <div style="margin-top:8px">
@@ -1286,7 +1347,7 @@ function getTop5(name) {
   const r = top5[normName(name)];
   if (!r) return '';
   const items = [];
-  for (let i=1;i<=5;i++) if(r[`TOP${i}_품목`]) items.push(`${r[`TOP${i}_품목`]} (${r[`TOP${i}_KG`]}kg)`);
+  for (let i=1;i<=5;i++) if(r[`TOP${i}_품목`]) items.push(`${escHtml(r[`TOP${i}_품목`])} (${escHtml(r[`TOP${i}_KG`])}kg)`);
   return items.join('<br>');
 }
 
@@ -1356,8 +1417,8 @@ function renderList() {
       return `<div class="ci sel" onclick="removeSearchSel(${i})">
         <div class="chk" style="background:#e84444;border-color:#e84444"></div>
         <div class="ci-info">
-          <div class="ci-name">${item['거래처명']}</div>
-          <div class="ci-addr">${item['주소']||''}</div>
+          <div class="ci-name">${escHtml(item['거래처명'])}</div>
+          <div class="ci-addr">${escHtml(item['주소']||'')}</div>
         </div>
         <span class="badge" style="background:rgba(232,68,68,.15);color:#e84444">검색</span>
       </div>`;
@@ -1374,9 +1435,9 @@ function renderList() {
       return `<div class="ci sel" onclick="toggleSel('${curTab}',${i})">
         <div class="chk"></div>
         <div class="ci-info">
-          <div class="ci-name">${item['거래처명']}</div>
-          <div class="ci-addr">${item['주소']||''}</div>
-          ${mgr||date?`<div class="ci-mgr">${mgr}${mgr&&date?' · ':''}${date}</div>`:''}
+          <div class="ci-name">${escHtml(item['거래처명'])}</div>
+          <div class="ci-addr">${escHtml(item['주소']||'')}</div>
+          ${mgr||date?`<div class="ci-mgr">${escHtml(mgr)}${mgr&&date?' · ':''}${escHtml(date)}</div>`:''}
         </div>
         <span class="badge ${bc}">${lb}</span>
       </div>`;
@@ -1416,9 +1477,9 @@ function renderList() {
     return `<div class="ci" onclick="toggleSel('${itemType}',${itemIdx})">
       <div class="chk"></div>
       <div class="ci-info">
-        <div class="ci-name">${item['거래처명']}</div>
-        <div class="ci-addr">${item['주소']||''}</div>
-        ${mgr||date?`<div class="ci-mgr">${mgr}${mgr&&date?' · ':''}${date}</div>`:''}
+        <div class="ci-name">${escHtml(item['거래처명'])}</div>
+        <div class="ci-addr">${escHtml(item['주소']||'')}</div>
+        ${mgr||date?`<div class="ci-mgr">${escHtml(mgr)}${mgr&&date?' · ':''}${escHtml(date)}</div>`:''}
       </div>
       <span class="badge ${typeBc}">${typeLb}</span>
     </div>`;
@@ -1437,7 +1498,34 @@ function searchCat(btn, catName, keywords) {
   curCatName = catName;
   if (curCatBtn === btn && btn.classList.contains('on')) { clearCat(); return; }
   document.querySelectorAll('.cat').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.cat-sub').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.cat-group').forEach(g=>g.classList.remove('open'));
   btn.classList.add('on');
+  curCatBtn = btn;
+  curCat = keywords;
+  markers.search.forEach(m=>m.setMap(null));
+  markers.search = [];
+  doSearch(keywords);
+}
+
+// 식당▾ 드롭다운 토글 (region-group과 동일 패턴)
+function toggleCatGroup(id) {
+  const groups = document.querySelectorAll('.cat-group');
+  groups.forEach(g => {
+    if (g.id === 'cg-'+id) g.classList.toggle('open');
+    else g.classList.remove('open');
+  });
+}
+
+// 식당 하위 그룹(탕류/구이류/샤브뷔페/꼬리우족/족발보쌈) 검색
+function searchCatGroup(btn, catName, keywords) {
+  curCatName = catName;
+  if (curCatBtn === btn && btn.classList.contains('on')) { clearCat(); return; }
+  document.querySelectorAll('.cat').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.cat-sub').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('cg-restaurant').querySelector('.cat').classList.add('on');
+  document.querySelectorAll('.cat-group').forEach(g=>g.classList.remove('open'));
   curCatBtn = btn;
   curCat = keywords;
   markers.search.forEach(m=>m.setMap(null));
@@ -1515,9 +1603,17 @@ function clearCat() {
   markers.search.forEach(m=>m.setMap(null));
   markers.search=[];
   document.querySelectorAll('.cat').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.cat-sub').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.cat-group').forEach(g=>g.classList.remove('open'));
 }
 
 function normName(n) { return String(n||'').replace(/\s+/g,'').trim(); }
+
+// HTML 마크업 인젝션 방지용 escape — innerHTML/템플릿 리터럴로 출력되는
+// 거래처명/주소/카테고리/메모 등 외부·사용자 입력 데이터에 적용
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 // 라벨 기능 삭제됨
 
@@ -1653,7 +1749,7 @@ function renderRoute() {
   el.innerHTML = allSel.map((s,i) => `
     <div class="rstep" id="rstep-${i}">
       <div class="snum">${i+1}</div>
-      <div class="sname">${s['거래처명']}</div>
+      <div class="sname">${escHtml(s['거래처명'])}</div>
       <div style="display:flex;flex-direction:column;gap:1px;margin-left:auto">
         <button onclick="moveRoute(${i},-1)" style="
           background:none;border:1px solid var(--border);border-radius:3px;
@@ -1783,6 +1879,9 @@ function focusPlanItem(name) {
 
 // 영업계획 패널 표시 (방문완료 체크)
 function showPlanPanel(items, user) {
+  // [리뷰 질문 — 동작 변경 보류] 이 PC 목록은 '유형'(기존/신규)과 무관하게 모든 항목에 방문체크(toggleVisit)를 렌더합니다(아래 1830라인).
+  // 반면 모바일 카드(mShowPlanCards)는 '기존' 거래처면 방문버튼을 숨기고 T맵만 제공합니다(설계문서의 의도된 규칙).
+  // 의도: (A) 목록형에서는 전체 체크 허용이 맞다  /  (B) 카드와 동일하게 '기존'은 체크 숨겨야 한다 — 확인 부탁드립니다.
   // 기존 패널 제거
   const existing = document.getElementById('plan-panel');
   if (existing) existing.remove();
@@ -1827,7 +1926,7 @@ function showPlanPanel(items, user) {
           display:flex;align-items:center;gap:8px;padding:8px 14px;
           border-bottom:1px solid var(--border);cursor:pointer;
           opacity:${visited?'0.5':'1'};transition:opacity .2s">
-          <div onclick="toggleVisit('${item['거래처명'].replace(/'/g,"\'")}','${user}',${i})" style="
+          <div onclick="toggleVisit('${item['거래처명'].replace(/'/g,"\\'")}','${user}',${i})" style="
             width:18px;height:18px;border-radius:50%;flex-shrink:0;cursor:pointer;
             border:2px solid ${visited?'#27ae60':'var(--border)'};
             background:${visited?'#27ae60':'transparent'};
@@ -1835,14 +1934,14 @@ function showPlanPanel(items, user) {
             font-size:10px;color:white">
             ${visited?'✓':''}
           </div>
-          <div onclick="focusPlanItem('${item['거래처명'].replace(/'/g,"\'")}')" style="flex:1;min-width:0;cursor:pointer">
+          <div onclick="focusPlanItem('${item['거래처명'].replace(/'/g,"\\'")}')" style="flex:1;min-width:0;cursor:pointer">
             <div style="font-size:12px;font-weight:${visited?'400':'600'};color:var(--text);
               text-decoration:${visited?'line-through':'none'};
               white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-              ${item['No']}. ${item['거래처명']}
+              ${item['No']}. ${escHtml(item['거래처명'])}
             </div>
             <div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-              ${item['주소']||''}
+              ${escHtml(item['주소']||'')}
             </div>
           </div>
           <span style="font-size:9px;padding:2px 5px;border-radius:3px;flex-shrink:0;
@@ -1969,24 +2068,24 @@ async function submitAddForm() {
 
 // ── 신규영업처 통합 팝업 (카테고리 검색 + 등록된 신규영업처 공통) ──
 function buildProspectIW(name, addr, cat, lat, lng, isRegistered, visitedIn, memoIn, openHours) {
-  const nameE = name.replace(/'/g,"\'").replace(/"/g,'&quot;');
-  const addrE = addr.replace(/'/g,"\'").replace(/"/g,'&quot;');
-  const catE  = cat.replace(/'/g,"\'");
+  const nameE = name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  const addrE = addr.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  const catE  = cat.replace(/'/g,"\\'");
   const hoursHtml = openHours
-    ? `<div style="font-size:11px;color:#7b82a0;margin-top:3px">⏰ ${openHours}</div>` : '';
+    ? `<div style="font-size:11px;color:#7b82a0;margin-top:3px">⏰ ${escHtml(openHours)}</div>` : '';
   const visitedHtml = isRegistered
     ? `<div style="font-size:11px;color:${visitedIn?'#27ae60':'#7b82a0'};margin-top:3px">${visitedIn?'✅ 방문완료':'⬜ 미방문'}</div>` : '';
   const memoHtml = (isRegistered && memoIn)
-    ? `<div style="font-size:11px;color:#7b82a0;margin-top:3px">📝 ${memoIn}</div>` : '';
+    ? `<div style="font-size:11px;color:#7b82a0;margin-top:3px">📝 ${escHtml(memoIn)}</div>` : '';
 
   const tMapUrl = `tmap://route?goalname=${encodeURIComponent(name)}&goaly=${lat}&goalx=${lng}`;
   const tMapWebUrl = `https://tmap.life/${lat},${lng}`;
 
   return `<div class="iw" style="position:relative;min-width:210px">
     <button onclick="closeOverlay()" style="position:absolute;top:4px;right:4px;background:none;border:none;color:#7b82a0;cursor:pointer;font-size:14px">✕</button>
-    <div class="iw-name">${name}</div>
-    <div class="iw-addr">${addr}</div>
-    <span class="iw-badge" style="background:rgba(232,68,68,.15);color:#e84444">${cat||'신규영업처'}</span>
+    <div class="iw-name">${escHtml(name)}</div>
+    <div class="iw-addr">${escHtml(addr)}</div>
+    <span class="iw-badge" style="background:rgba(232,68,68,.15);color:#e84444">${escHtml(cat||'신규영업처')}</span>
     ${hoursHtml}${visitedHtml}${memoHtml}
     <div style="display:flex;gap:5px;margin-top:8px">
       ${!isRegistered
@@ -2008,7 +2107,7 @@ function buildProspectIW(name, addr, cat, lat, lng, isRegistered, visitedIn, mem
         style="width:100%;padding:6px;background:#2e3247;border:1px solid #3a4060;border-radius:5px;color:#5c6ef8;font-size:11px;cursor:pointer">📍 경로(영업계획)에 추가</button>
     </div>
     <div style="display:flex;gap:5px;margin-top:6px">
-      <input id="iw-memo-input" placeholder="비고 입력..." value="${memoIn||''}"
+      <input id="iw-memo-input" placeholder="비고 입력..." value="${escHtml(memoIn||'')}"
         style="flex:1;padding:5px 8px;background:#1a1d27;border:1px solid #2e3247;border-radius:5px;color:#e8eaf0;font-size:11px;outline:none">
       <button onclick="upsertProspectAction('memo','${nameE}','${addrE}','${catE}',${lat},${lng},false,document.getElementById('iw-memo-input').value)"
         style="padding:5px 10px;background:#e67e22;border:none;border-radius:5px;color:white;font-size:11px;cursor:pointer">작성</button>
@@ -2018,22 +2117,22 @@ function buildProspectIW(name, addr, cat, lat, lng, isRegistered, visitedIn, mem
 
 // 모바일용 신규영업처 팝업
 function buildProspectIW_mobile(name, addr, cat, lat, lng, isRegistered, visitedIn, memoIn, openHours, phone, placeUrl) {
-  const nameE = name.replace(/'/g,"\'").replace(/"/g,'&quot;');
-  const addrE = addr.replace(/'/g,"\'").replace(/"/g,'&quot;');
-  const catE  = cat.replace(/'/g,"\'");
-  const hoursHtml = openHours ? `<div style="font-size:12px;color:#7b82a0;margin-top:4px">⏰ ${openHours}</div>` : '';
-  const phoneHtml = phone ? `<div style="font-size:12px;color:#7b82a0;margin-top:6px;display:flex;align-items:center;gap:8px">📞 ${phone}<a href="tel:${phone}" style="margin-left:auto;padding:7px 16px;background:#27ae60;border-radius:8px;color:white;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">📲 전화</a></div>` : '';
+  const nameE = name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  const addrE = addr.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  const catE  = cat.replace(/'/g,"\\'");
+  const hoursHtml = openHours ? `<div style="font-size:12px;color:#7b82a0;margin-top:4px">⏰ ${escHtml(openHours)}</div>` : '';
+  const phoneHtml = phone ? `<div style="font-size:12px;color:#7b82a0;margin-top:6px;display:flex;align-items:center;gap:8px">📞 ${escHtml(phone)}<a href="tel:${encodeURIComponent(phone)}" style="margin-left:auto;padding:7px 16px;background:#27ae60;border-radius:8px;color:white;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">📲 전화</a></div>` : '';
   const tMapUrl = `tmap://route?goalname=${encodeURIComponent(name)}&goaly=${lat}&goalx=${lng}`;
   const tMapWebUrl = `https://tmap.life/${lat},${lng}`;
 
   return `<div style="background:#1a1d27;border:1px solid #2e3247;border-radius:12px;padding:14px 16px;min-width:220px;max-width:280px;box-shadow:0 4px 20px rgba(0,0,0,.6)">
-    <div style="font-size:15px;font-weight:700;color:#e8eaf0;margin-bottom:3px">${placeUrl ? `<a href="${placeUrl}" target="_blank" style="color:#e8eaf0;text-decoration:underline dotted;text-underline-offset:3px">${name}</a>` : name}</div>
-    <div style="font-size:12px;color:#7b82a0;margin-bottom:4px;line-height:1.4">${addr}</div>
-    <span style="font-size:11px;background:rgba(232,68,68,.15);color:#e84444;padding:2px 8px;border-radius:4px">${cat||'신규영업처'}</span>
+    <div style="font-size:15px;font-weight:700;color:#e8eaf0;margin-bottom:3px">${placeUrl ? `<a href="${placeUrl}" target="_blank" style="color:#e8eaf0;text-decoration:underline dotted;text-underline-offset:3px">${escHtml(name)}</a>` : escHtml(name)}</div>
+    <div style="font-size:12px;color:#7b82a0;margin-bottom:4px;line-height:1.4">${escHtml(addr)}</div>
+    <span style="font-size:11px;background:rgba(232,68,68,.15);color:#e84444;padding:2px 8px;border-radius:4px">${escHtml(cat||'신규영업처')}</span>
     ${hoursHtml}
     ${phoneHtml}
     ${isRegistered && visitedIn ? '<div style="font-size:12px;color:#27ae60;margin-top:4px">✅ 방문완료</div>' : ''}
-    ${isRegistered && memoIn ? `<div style="font-size:11px;color:#7b82a0;margin-top:4px">📝 ${memoIn}</div>` : ''}
+    ${isRegistered && memoIn ? `<div style="font-size:11px;color:#7b82a0;margin-top:4px">📝 ${escHtml(memoIn)}</div>` : ''}
     <div style="display:flex;gap:6px;margin-top:12px">
       ${!isRegistered
         ? `<button onclick="mUpsertProspect('register','${nameE}','${addrE}','${catE}',${lat},${lng},false,'')" style="flex:1;padding:10px;background:#5c6ef8;border:none;border-radius:8px;color:white;font-size:12px;font-weight:600;cursor:pointer">📋 등록</button>`
@@ -2049,7 +2148,7 @@ function buildProspectIW_mobile(name, addr, cat, lat, lng, isRegistered, visited
       </a>
     </div>
     <div style="display:flex;gap:6px;margin-top:8px">
-      <input id="m-iw-memo" placeholder="비고 입력..." value="${memoIn||''}"
+      <input id="m-iw-memo" placeholder="비고 입력..." value="${escHtml(memoIn||'')}"
         style="flex:1;padding:9px 12px;background:#0f1117;border:1px solid #2e3247;border-radius:8px;color:#e8eaf0;font-size:12px;outline:none">
       <button onclick="mUpsertProspect('memo','${nameE}','${addrE}','${catE}',${lat},${lng},false,document.getElementById('m-iw-memo').value)"
         style="padding:9px 14px;background:#e67e22;border:none;border-radius:8px;color:white;font-size:12px;font-weight:600;cursor:pointer">작성</button>
@@ -2318,11 +2417,19 @@ kakao.maps.event.addListener(map, 'idle', filterListByBounds);
       <!-- 카테고리 버튼 -->
       <div class="m-cat-bar">
         <button class="m-cat-btn" onclick="mSearchCat2(this,'육가공',['육가공장','육가공품','양념육','가공육'])">🏭 육가공</button>
-        <button class="m-cat-btn" onclick="mSearchCat2(this,'식당',['샤브샤브','무한리필','기사식당','뷔페','함바'])">🍽️ 식당</button>
+        <div class="m-cat-group" id="m-cg-restaurant">
+          <button class="m-cat-btn" onclick="mToggleCatGroup('restaurant')">🍽️ 식당 ▾</button>
+          <div class="m-cat-dropdown">
+            <button class="m-cat-sub" onclick="mSearchCatGroup2(this,'식당',['갈비탕','설렁탕','곰탕'])">탕류</button>
+            <button class="m-cat-sub" onclick="mSearchCatGroup2(this,'식당',['스테이크','무한리필','고깃집'])">구이류</button>
+            <button class="m-cat-sub" onclick="mSearchCatGroup2(this,'식당',['샤브','무한리필뷔페','뷔페','기사식당','함바'])">샤브/뷔페</button>
+            <button class="m-cat-sub" onclick="mSearchCatGroup2(this,'식당',['꼬리','사골','우족'])">꼬리우족</button>
+            <button class="m-cat-sub" onclick="mSearchCatGroup2(this,'식당',['족발','보쌈','수육'])">족발보쌈</button>
+          </div>
+        </div>
         <button class="m-cat-btn" onclick="mSearchCat2(this,'수산물',['수산물','생선구이'])">🐟 수산물</button>
         <button class="m-cat-btn" onclick="mSearchCat2(this,'식자재',['식자재마트'])">🛒 식자재</button>
         <button class="m-cat-btn" onclick="mSearchCat2(this,'곱창',['곱창','막창'])">🫀 곱창</button>
-        <button class="m-cat-btn" onclick="mSearchCat2(this,'부산물',['감자탕','등뼈','목뼈','꼬리','순대','머리고기','사골','족발','보쌈'])">🦴 부산물</button>
         <button class="m-cat-btn" onclick="mSearchCat2(this,'할랄',['양꼬치','할랄','케밥','타코'])">🐑 할랄</button>
         <button class="m-cat-btn" style="color:#e84444" onclick="mClearCat2()">✕</button>
       </div>
@@ -2551,12 +2658,12 @@ function mShowIW2(marker, item, type, idx) {
   var sid = type+'_'+idx;
   var isSel = selected.some(function(s){return s._sid===sid;});
   var c = '<div style="background:#1a1d27;border:1px solid #2e3247;border-radius:12px;padding:14px 16px;min-width:210px;max-width:270px;box-shadow:0 4px 20px rgba(0,0,0,.6)">'
-    +'<div style="font-size:16px;font-weight:700;color:#e8eaf0;margin-bottom:4px">'+name+'</div>'
-    +'<div style="font-size:12px;color:#7b82a0;margin-bottom:8px;line-height:1.4">'+addr+'</div>'
+    +'<div style="font-size:16px;font-weight:700;color:#e8eaf0;margin-bottom:4px">'+escHtml(name)+'</div>'
+    +'<div style="font-size:12px;color:#7b82a0;margin-bottom:8px;line-height:1.4">'+escHtml(addr)+'</div>'
     +'<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
     +'<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;background:'+bColor+';color:'+tColor+'">'+label+'</span>'
-    +(mgr?'<span style="font-size:11px;color:#7b82a0">'+mgr+'</span>':'')
-    +(date?'<span style="font-size:11px;color:#7b82a0">· '+date+'</span>':'')
+    +(mgr?'<span style="font-size:11px;color:#7b82a0">'+escHtml(mgr)+'</span>':'')
+    +(date?'<span style="font-size:11px;color:#7b82a0">· '+escHtml(date)+'</span>':'')
     +'</div>'
     +'<button onclick="mAddToRoute2(\''+type+'\','+idx+')" style="width:100%;padding:12px;background:'+(isSel?'#3b6ef8':'#5c6ef8')+';border:none;border-radius:8px;color:white;font-size:14px;font-weight:600;cursor:pointer">'
     +(isSel?'✅ 경로에 추가됨':'📍 경로 추가')
@@ -2607,7 +2714,7 @@ function mRenderRoute2() {
   el.innerHTML = allSel.map(function(s,i){
     return '<div class="m-route-item">'
       +'<div class="m-route-num">'+(i+1)+'</div>'
-      +'<div class="m-route-name">'+s['거래처명']+'</div>'
+      +'<div class="m-route-name">'+escHtml(s['거래처명'])+'</div>'
       +'<div class="m-route-btns">'
       +'<button onclick="mMoveRoute2('+i+',-1)" '+(i===0?'disabled':'')+'>▲</button>'
       +'<button onclick="mMoveRoute2('+i+',1)" '+(i===allSel.length-1?'disabled':'')+'>▼</button>'
@@ -2722,11 +2829,38 @@ function mMoveRegion(lat, lng, name) {
 function mSearchCat2(btn, catName, keywords) {
   if (mCurCatBtn2===btn && btn.classList.contains('active')) { mClearCat2(); return; }
   document.querySelectorAll('.m-cat-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.m-cat-sub').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.m-cat-group').forEach(function(g){g.classList.remove('open');});
   btn.classList.add('active');
   mCurCatBtn2 = btn;
   mCurCat2 = keywords;
   mCurCatName2 = catName;
   if (mAllViewOpen) mHideAllView(); // 카테고리 전환 시 모두보기 자동으로 닫음
+  mMobMarkers.search.forEach(function(m){m.setMap(null);});
+  mMobMarkers.search = [];
+  mDoSearch2(keywords);
+}
+
+// 식당▾ 드롭다운 토글
+function mToggleCatGroup(id) {
+  document.querySelectorAll('.m-cat-group').forEach(function(g){
+    if (g.id === 'm-cg-'+id) g.classList.toggle('open');
+    else g.classList.remove('open');
+  });
+}
+
+// 식당 하위 그룹(탕류/구이류/샤브뷔페/꼬리우족/족발보쌈) 검색
+function mSearchCatGroup2(btn, catName, keywords) {
+  if (mCurCatBtn2===btn && btn.classList.contains('active')) { mClearCat2(); return; }
+  document.querySelectorAll('.m-cat-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.m-cat-sub').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById('m-cg-restaurant').querySelector('.m-cat-btn').classList.add('active');
+  document.querySelectorAll('.m-cat-group').forEach(function(g){g.classList.remove('open');});
+  mCurCatBtn2 = btn;
+  mCurCat2 = keywords;
+  mCurCatName2 = catName;
+  if (mAllViewOpen) mHideAllView();
   mMobMarkers.search.forEach(function(m){m.setMap(null);});
   mMobMarkers.search = [];
   mDoSearch2(keywords);
@@ -2874,20 +3008,20 @@ function mShowAllView() {
     card.innerHTML = ''
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start">'
       +   '<div style="flex:1;min-width:0">'
-      +     '<div style="font-size:14px;font-weight:700;color:#e8eaf0;line-height:1.3">' + (p.placeUrl ? '<a href="' + p.placeUrl + '" target="_blank" style="color:#e8eaf0;text-decoration:underline dotted;text-underline-offset:3px">' + p.name + '</a>' : p.name) + '</div>'
-      +     '<div style="font-size:11px;color:#7b82a0;margin-top:3px;line-height:1.4">' + p.addr + '</div>'
+      +     '<div style="font-size:14px;font-weight:700;color:#e8eaf0;line-height:1.3">' + (p.placeUrl ? '<a href="' + p.placeUrl + '" target="_blank" style="color:#e8eaf0;text-decoration:underline dotted;text-underline-offset:3px">' + escHtml(p.name) + '</a>' : escHtml(p.name)) + '</div>'
+      +     '<div style="font-size:11px;color:#7b82a0;margin-top:3px;line-height:1.4">' + escHtml(p.addr) + '</div>'
       +   '</div>'
       +   '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-left:8px;flex-shrink:0">'
-      +     '<span style="font-size:10px;background:rgba(232,68,68,.15);color:#e84444;padding:2px 7px;border-radius:4px">' + (p.cat||'') + '</span>'
+      +     '<span style="font-size:10px;background:rgba(232,68,68,.15);color:#e84444;padding:2px 7px;border-radius:4px">' + escHtml(p.cat||'') + '</span>'
       +     (isVis ? '<span style="font-size:11px;color:#27ae60;font-weight:700">✅ 방문완료</span>'
                    : (isReg ? '<span style="font-size:11px;color:#5c6ef8">📋 등록됨</span>' : ''))
       +   '</div>'
       + '</div>'
-      + (hours ? '<div style="font-size:11px;color:#7b82a0">⏰ ' + hours + '</div>' : '')
+      + (hours ? '<div style="font-size:11px;color:#7b82a0">⏰ ' + escHtml(hours) + '</div>' : '')
       + (phone
           ? '<div style="display:flex;align-items:center;gap:8px">'
-          +   '<span style="font-size:12px;color:#7b82a0">📞 ' + phone + '</span>'
-          +   '<a href="tel:' + phone + '" style="margin-left:auto;padding:6px 14px;background:#27ae60;border-radius:7px;color:white;font-size:12px;font-weight:700;text-decoration:none">📲 전화</a>'
+          +   '<span style="font-size:12px;color:#7b82a0">📞 ' + escHtml(phone) + '</span>'
+          +   '<a href="tel:' + encodeURIComponent(phone) + '" style="margin-left:auto;padding:6px 14px;background:#27ae60;border-radius:7px;color:white;font-size:12px;font-weight:700;text-decoration:none">📲 전화</a>'
           + '</div>'
           : '')
       + '<div style="display:flex;gap:6px;margin-top:auto">'
@@ -2984,6 +3118,8 @@ function mClearCat2() {
   mMobMarkers.search=[];
   mCatPlaces=[];
   document.querySelectorAll('.m-cat-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.m-cat-sub').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.m-cat-group').forEach(function(g){g.classList.remove('open');});
   mHideAllView();
   document.getElementById('m-tab-allview').style.display='none';
 }
@@ -3078,8 +3214,8 @@ function mRenderSearch() {
     var tMapWeb = 'https://tmap.life/' + lat + ',' + lng;
     return '<div class="m-cust-item">'
       +'<div onclick="mFocusSearchResult2(\''+t+'\','+idx+')" style="flex:1;min-width:0;cursor:pointer">'
-      +'<div class="m-cust-name">'+(isMine2?'⭐ ':'')+item['거래처명']+'</div>'
-      +'<div class="m-cust-sub">'+(item['주소']||'')+(item['담당자']?' · '+item['담당자']:'')+'</div>'
+      +'<div class="m-cust-name">'+(isMine2?'⭐ ':'')+escHtml(item['거래처명'])+'</div>'
+      +'<div class="m-cust-sub">'+escHtml(item['주소']||'')+(item['담당자']?' · '+escHtml(item['담당자']):'')+'</div>'
       +'</div>'
       +'<span class="m-badge" style="background:'+typeBgs[t]+';color:'+typeColors[t]+'">'+typeLabels[t]+'</span>'
       +(lat&&lng ? '<a class="mpc-tmap" data-tmap="'+tMapUrl+'" data-twebmap="'+tMapWeb+'" style="padding:5px 9px;background:#1b6cf2;border-radius:14px;color:white;font-size:11px;text-decoration:none;cursor:pointer;flex-shrink:0;margin-left:6px">🚚</a>' : '')
@@ -3124,16 +3260,18 @@ function mRenderPlanList2() {
     ? mPlanData.filter(function(r){return r['방문완료']!==true&&r['방문완료']!=='TRUE';})
     : mPlanData;
   if (!items.length) { el.innerHTML='<div class="m-empty">'+( mPlanFilter_val==='todo'?'미완료 항목이 없습니다':'오늘 영업계획이 없습니다')+'</div>'; return; }
+  // [리뷰 질문 — 동작 변경 보류] 이 모바일 '목록 탭'도 PC showPlanPanel과 마찬가지로 '유형' 무관 전체에 방문체크를 답니다.
+  // 같은 화면의 카드 슬라이더(mShowPlanCards)는 '기존'이면 방문버튼을 숨깁니다. 목록 탭에도 같은 규칙을 적용할지 확인 부탁드립니다.
   el.innerHTML = items.map(function(item,i){
     var done = item['방문완료']===true||item['방문완료']==='TRUE';
-    var nameEsc = item['거래처명'].replace(/'/g,"\'");
+    var nameEsc = item['거래처명'].replace(/'/g,"\\'");
     return '<div class="m-plan-item" onclick="mToggleVisit2(\''+nameEsc+'\','+i+')">'
       +'<div class="m-visit-circle'+(done?' done':'')+'">'+(done?'✓':'')+'</div>'
       +'<div class="m-plan-info">'
-      +'<div class="m-plan-name '+(done?'done':'')+'">'+item['No']+'. '+item['거래처명']+'</div>'
-      +'<div class="m-plan-addr">'+(item['주소']||'')+'</div>'
+      +'<div class="m-plan-name '+(done?'done':'')+'">'+item['No']+'. '+escHtml(item['거래처명'])+'</div>'
+      +'<div class="m-plan-addr">'+escHtml(item['주소']||'')+'</div>'
       +'</div>'
-      +'<span class="m-badge" style="background:rgba(92,110,248,.15);color:#5c6ef8;font-size:10px">'+(item['유형']||'기존')+'</span>'
+      +'<span class="m-badge" style="background:rgba(92,110,248,.15);color:#5c6ef8;font-size:10px">'+escHtml(item['유형']||'기존')+'</span>'
       +'</div>';
   }).join('');
 }
@@ -3203,7 +3341,7 @@ function mShowPlanCards(planData) {
     var tMapWeb = 'https://tmap.life/' + lat + ',' + lng;
 
     card.innerHTML = ''
-      + '<span style="font-size:12px;font-weight:600;color:#e8eaf0">' + (isVisited&&!isExisting2?'✅ ':'') + (item['거래처명']||'') + '</span>'
+      + '<span style="font-size:12px;font-weight:600;color:#e8eaf0">' + (isVisited&&!isExisting2?'✅ ':'') + escHtml(item['거래처명']||'') + '</span>'
       + (isExisting2 ? '' : '<button class="mpc-visit" data-name="' + (item['거래처명']||'').replace(/"/g,'&quot;') + '" data-visited="' + isVisited + '" style="padding:5px 9px;background:' + (isVisited?'#27ae60':'#2e3247') + ';border:none;border-radius:14px;color:' + (isVisited?'white':'#7b82a0') + ';font-size:10px;cursor:pointer;flex-shrink:0">' + (isVisited?'✓':'방문') + '</button>')
       +   '<a class="mpc-tmap" data-tmap="' + tMapUrl + '" data-twebmap="' + tMapWeb + '" style="padding:5px 9px;background:#1b6cf2;border-radius:14px;color:white;font-size:11px;text-decoration:none;cursor:pointer;flex-shrink:0">🚚</a>';
 
