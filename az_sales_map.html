@@ -2345,7 +2345,11 @@ var mPolylines2 = [];
 var mCurIW2 = null;
 
 function isMobile() {
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768;
+  var ua = navigator.userAgent;
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+  // 홈화면 바로가기(WebAPK/TWA) 등 UA 누락 케이스 대응
+  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) return true;
+  return window.innerWidth <= 768;
 }
 
 function initMobile() {
