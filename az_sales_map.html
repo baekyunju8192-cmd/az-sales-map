@@ -2569,6 +2569,7 @@ function mSearchCat2(btn, catName, keywords) {
   mCurCatBtn2 = btn;
   mCurCat2 = keywords;
   mCurCatName2 = catName;
+  if (mAllViewOpen) mHideAllView(); // 카테고리 전환 시 모두보기 자동으로 닫음
   mMobMarkers.search.forEach(function(m){m.setMap(null);});
   mMobMarkers.search = [];
   mDoSearch2(keywords);
