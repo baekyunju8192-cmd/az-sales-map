@@ -362,39 +362,6 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
     flex-shrink:0;
     font-weight:600;
   }
-  /* 동명 거래처 여러 곳 — 가로 스크롤 그룹 */
-  .m-srch-group {
-    padding:10px 16px;
-    border-bottom:1px solid var(--border);
-  }
-  .m-srch-group-label {
-    font-size:12px;
-    font-weight:600;
-    color:var(--text);
-    margin-bottom:7px;
-  }
-  .m-srch-group-track {
-    display:flex;
-    gap:8px;
-    overflow-x:auto;
-    scroll-snap-type:x mandatory;
-    -webkit-overflow-scrolling:touch;
-    scrollbar-width:none;
-    padding-bottom:2px;
-  }
-  .m-srch-group-track::-webkit-scrollbar { display:none; }
-  .m-srch-chip {
-    flex:0 0 auto;
-    scroll-snap-align:start;
-    width:180px;
-    background:var(--surface2);
-    border:1px solid var(--border);
-    border-radius:10px;
-    padding:8px 10px;
-    display:flex;
-    align-items:center;
-    gap:6px;
-  }
   .m-chk {
     width:22px; height:22px;
     border:1.5px solid var(--border);
@@ -2294,19 +2261,9 @@ kakao.maps.event.addListener(map, 'idle', filterListByBounds);
     <div class="m-panel-body" id="m-search-list">
       <div class="m-empty">거래처명을 입력하세요</div>
     </div>
-    <!-- 선택된 거래처 + 저장 -->
-    <div style="padding:8px 14px;border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:6px">
-      <div id="m-route-list" style="max-height:120px;overflow-y:auto"></div>
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <span id="m-sel-count" style="font-size:12px;color:var(--muted)">0개 선택</span>
-      </div>
-      <div style="display:flex;gap:6px">
-        <button onclick="savePlan()" class="m-btn-primary" style="flex:1">💾 영업계획 저장</button>
-        <button onclick="mClearSelection2()" class="m-btn-secondary" style="flex:1">✕ 초기화</button>
-      </div>
-    </div>
   </div>
 </div>
+
 
 <script>
 // =============================================
@@ -2896,84 +2853,33 @@ function mRenderSearch() {
   results = mine.concat(others);
   if (!results.length) { el.innerHTML='<div class="m-empty">검색 결과 없음</div>'; return; }
 
-  // 거래처명 기준으로 그룹화 (동명 거래처 여러 곳 → 가로 스크롤 칩)
-  var groups = [];
-  var groupMap = {};
-  results.slice(0,40).forEach(function(item){
-    var key = item['거래처명']||'';
-    if (!groupMap[key]) { groupMap[key] = []; groups.push(key); }
-    groupMap[key].push(item);
-  });
-
-  el.innerHTML = groups.map(function(name){
-    var items = groupMap[name];
-    if (items.length === 1) {
-      var item = items[0];
-      return mRenderSearchItem(item, typeColors, typeLabels, typeBgs, myName);
-    }
-    // 동명 거래처 여러 곳 — 가로 스크롤 칩
-    return '<div class="m-srch-group">'
-      + '<div class="m-srch-group-label">' + name + ' (' + items.length + '곳)</div>'
-      + '<div class="m-srch-group-track">'
-      + items.map(function(item){ return mRenderSearchChip(item, typeColors, typeLabels, typeBgs, myName); }).join('')
-      + '</div></div>';
+  el.innerHTML = results.slice(0,40).map(function(item){
+    var t = item._mtype, idx = item._idx;
+    var isMine2 = myName&&(item['담당자']||'').includes(myName);
+    var lat = parseFloat(item['위도']), lng = parseFloat(item['경도']);
+    var tMapUrl = 'tmap://route?goalname=' + encodeURIComponent(item['거래처명']||'') + '&goaly=' + lat + '&goalx=' + lng;
+    var tMapWeb = 'https://tmap.life/' + lat + ',' + lng;
+    return '<div class="m-cust-item">'
+      +'<div onclick="mFocusSearchResult2(\''+t+'\','+idx+')" style="flex:1;min-width:0;cursor:pointer">'
+      +'<div class="m-cust-name">'+(isMine2?'⭐ ':'')+item['거래처명']+'</div>'
+      +'<div class="m-cust-sub">'+(item['주소']||'')+(item['담당자']?' · '+item['담당자']:'')+'</div>'
+      +'</div>'
+      +'<span class="m-badge" style="background:'+typeBgs[t]+';color:'+typeColors[t]+'">'+typeLabels[t]+'</span>'
+      +(lat&&lng ? '<a class="mpc-tmap" data-tmap="'+tMapUrl+'" data-twebmap="'+tMapWeb+'" style="padding:5px 9px;background:#1b6cf2;border-radius:14px;color:white;font-size:11px;text-decoration:none;cursor:pointer;flex-shrink:0;margin-left:6px">🚚</a>' : '')
+      +'</div>';
   }).join('');
 }
 
-function mRenderSearchItem(item, typeColors, typeLabels, typeBgs, myName) {
-  var t = item._mtype, idx = item._idx;
-  var sid = t+'_'+idx;
-  var isSel = selected.some(function(s){return s._sid===sid;});
-  var isMine2 = myName&&(item['담당자']||'').includes(myName);
-  var lat = parseFloat(item['위도']), lng = parseFloat(item['경도']);
-  var tMapUrl = 'tmap://route?goalname=' + encodeURIComponent(item['거래처명']||'') + '&goaly=' + lat + '&goalx=' + lng;
-  var tMapWeb = 'https://tmap.life/' + lat + ',' + lng;
-  return '<div class="m-cust-item">'
-    +'<div onclick="mSelectFromSearch2(\''+t+'\','+idx+')" style="display:flex;align-items:flex-start;gap:7px;flex:1;cursor:pointer">'
-    +'<div class="m-chk'+(isSel?' checked':'')+'">'+(isSel?'✓':'')+'</div>'
-    +'<div class="m-cust-info">'
-    +'<div class="m-cust-name">'+(isMine2?'⭐ ':'')+item['거래처명']+'</div>'
-    +'<div class="m-cust-sub">'+(item['주소']||'')+(item['담당자']?' · '+item['담당자']:'')+'</div>'
-    +'</div></div>'
-    +'<span class="m-badge" style="background:'+typeBgs[t]+';color:'+typeColors[t]+'">'+typeLabels[t]+'</span>'
-    +(lat&&lng ? '<a class="mpc-tmap" data-tmap="'+tMapUrl+'" data-twebmap="'+tMapWeb+'" onclick="event.stopPropagation()" style="padding:5px 9px;background:#1b6cf2;border-radius:14px;color:white;font-size:11px;text-decoration:none;cursor:pointer;flex-shrink:0;margin-left:6px">🚚</a>' : '')
-    +'</div>';
-}
-
-function mRenderSearchChip(item, typeColors, typeLabels, typeBgs, myName) {
-  var t = item._mtype, idx = item._idx;
-  var sid = t+'_'+idx;
-  var isSel = selected.some(function(s){return s._sid===sid;});
-  var isMine2 = myName&&(item['담당자']||'').includes(myName);
-  var lat = parseFloat(item['위도']), lng = parseFloat(item['경도']);
-  var tMapUrl = 'tmap://route?goalname=' + encodeURIComponent(item['거래처명']||'') + '&goaly=' + lat + '&goalx=' + lng;
-  var tMapWeb = 'https://tmap.life/' + lat + ',' + lng;
-  return '<div class="m-srch-chip" style="border-color:'+(isSel?typeColors[t]:'#2e3247')+'">'
-    +'<div onclick="mSelectFromSearch2(\''+t+'\','+idx+')" style="cursor:pointer;flex:1;min-width:0">'
-    +'<div style="font-size:11px;font-weight:600;color:#e8eaf0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(isMine2?'⭐ ':'')+(isSel?'✓ ':'')+(item['주소']||'')+'</div>'
-    +'<div style="font-size:9px;color:#7b82a0">'+(item['담당자']?item['담당자']+' · ':'')+'<span style="color:'+typeColors[t]+'">'+typeLabels[t]+'</span></div>'
-    +'</div>'
-    +(lat&&lng ? '<a class="mpc-tmap" data-tmap="'+tMapUrl+'" data-twebmap="'+tMapWeb+'" onclick="event.stopPropagation()" style="padding:5px 8px;background:#1b6cf2;border-radius:12px;color:white;font-size:10px;text-decoration:none;cursor:pointer;flex-shrink:0">🚚</a>' : '')
-    +'</div>';
-}
-
-function mSelectFromSearch2(type, idx) {
+function mFocusSearchResult2(type, idx) {
   var item = data[type][idx];
-  var sid = type+'_'+idx;
-  item._sid = sid;
-  var pos = selected.findIndex(function(s){return s._sid===sid;});
-  if (pos>=0) selected.splice(pos,1);
-  else selected.push(item);
   var lat = parseFloat(item['위도']);
   var lng = parseFloat(item['경도']);
   if (lat&&lng) {
     mMap2.setCenter(new kakao.maps.LatLng(lat,lng));
     mMap2.setLevel(6);
     mSwitchTab('map');
+    mSetStarOverlay(lat,lng);
   }
-  mUpdateRouteCount2();
-  mRenderSearch();
-  mRenderRoute2();
 }
 
 function mPlanFilter2(f) {
