@@ -13,7 +13,7 @@
   --red:#e84444; --green:#27ae60; --orange:#e67e22;
   --blue:#3b82f6; --accent:#5c6ef8;
 }
-body { font-family:-apple-system,sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+body { font-family:-apple-system,sans-serif; background:var(--bg); color:var(--text); height:100vh; height:100dvh; display:flex; flex-direction:column; overflow:hidden; }
 
 /* 헤더 */
 header { height:50px; background:var(--surface); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 14px; gap:10px; flex-shrink:0; }
@@ -144,7 +144,8 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
   #mobile-layout {
     display:flex;
     flex-direction:column;
-    height:calc(100vh - 44px);
+    height:calc(100vh - 44px); /* dvh 미지원 브라우저 fallback */
+    height:calc(100dvh - 44px);
     position:relative;
   }
 
@@ -710,7 +711,6 @@ if (localStorage.getItem('az_auth') === '1') {
     </div>
   </div>
   <div class="hright" id="hstatus">데이터 로딩 중...</div>
-  <button onclick="alert('UA:'+navigator.userAgent+'\n\nW:'+window.innerWidth+'\nTouch:'+navigator.maxTouchPoints+'\nisMobile:'+isMobile())" style="flex-shrink:0;font-size:10px;padding:2px 6px;background:#e84444;border:none;border-radius:4px;color:white;cursor:pointer;">🔍</button>
 </header>
 
 <div class="main">
@@ -2359,7 +2359,8 @@ function initMobile() {
   if (!layout) return;
   layout.style.display = 'flex';
   layout.style.flexDirection = 'column';
-  layout.style.height = 'calc(100vh - 44px)';
+  layout.style.height = 'calc(100vh - 44px)'; // dvh 미지원 fallback
+  layout.style.height = 'calc(100dvh - 44px)';
 
   mMap2 = new kakao.maps.Map(document.getElementById('map-mobile'), {
     center: new kakao.maps.LatLng(COMPANY.lat, COMPANY.lng),
