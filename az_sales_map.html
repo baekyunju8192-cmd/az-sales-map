@@ -266,23 +266,23 @@ header { height:50px; background:var(--surface); border-bottom:1px solid var(--b
 
   /* 카테고리 버튼 */
   .m-cat-bar {
-    display:flex;
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
     gap:5px;
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
     padding-bottom:2px;
   }
   .m-cat-bar::-webkit-scrollbar { display:none; }
   .m-cat-btn {
-    padding:5px 10px;
+    padding:7px 4px;
     background:rgba(15,17,23,0.85);
     border:none;
     border-radius:20px;
     color:white;
-    font-size:12px;
+    font-size:11px;
     cursor:pointer;
     white-space:nowrap;
     backdrop-filter:blur(4px);
+    text-align:center;
   }
   .m-cat-btn.active { background:#e84444; }
 
@@ -1893,17 +1893,17 @@ function buildProspectIW(name, addr, cat, lat, lng, isRegistered, visitedIn, mem
 }
 
 // 모바일용 신규영업처 팝업
-function buildProspectIW_mobile(name, addr, cat, lat, lng, isRegistered, visitedIn, memoIn, openHours, phone) {
+function buildProspectIW_mobile(name, addr, cat, lat, lng, isRegistered, visitedIn, memoIn, openHours, phone, placeUrl) {
   const nameE = name.replace(/'/g,"\'").replace(/"/g,'&quot;');
   const addrE = addr.replace(/'/g,"\'").replace(/"/g,'&quot;');
   const catE  = cat.replace(/'/g,"\'");
   const hoursHtml = openHours ? `<div style="font-size:12px;color:#7b82a0;margin-top:4px">⏰ ${openHours}</div>` : '';
-  const phoneHtml = phone ? `<div style="font-size:12px;color:#7b82a0;margin-top:4px;display:flex;align-items:center;gap:6px">📞 ${phone}<a href="tel:${phone}" style="margin-left:auto;padding:4px 10px;background:#27ae60;border-radius:6px;color:white;font-size:11px;font-weight:600;text-decoration:none">전화</a></div>` : '';
+  const phoneHtml = phone ? `<div style="font-size:12px;color:#7b82a0;margin-top:6px;display:flex;align-items:center;gap:8px">📞 ${phone}<a href="tel:${phone}" style="margin-left:auto;padding:7px 16px;background:#27ae60;border-radius:8px;color:white;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">📲 전화</a></div>` : '';
   const tMapUrl = `tmap://route?goalname=${encodeURIComponent(name)}&goaly=${lat}&goalx=${lng}`;
   const tMapWebUrl = `https://tmap.life/${lat},${lng}`;
 
   return `<div style="background:#1a1d27;border:1px solid #2e3247;border-radius:12px;padding:14px 16px;min-width:220px;max-width:280px;box-shadow:0 4px 20px rgba(0,0,0,.6)">
-    <div style="font-size:15px;font-weight:700;color:#e8eaf0;margin-bottom:3px">${name}</div>
+    <div style="font-size:15px;font-weight:700;color:#e8eaf0;margin-bottom:3px">${placeUrl ? `<a href="${placeUrl}" target="_blank" style="color:#e8eaf0;text-decoration:underline dotted;text-underline-offset:3px">${name}</a>` : name}</div>
     <div style="font-size:12px;color:#7b82a0;margin-bottom:4px;line-height:1.4">${addr}</div>
     <span style="font-size:11px;background:rgba(232,68,68,.15);color:#e84444;padding:2px 8px;border-radius:4px">${cat||'신규영업처'}</span>
     ${hoursHtml}
@@ -2183,6 +2183,15 @@ kakao.maps.event.addListener(map, 'idle', filterListByBounds);
     <button id="m-gps-btn" onclick="mGoToMyLocation()">📍</button>
   </div>
 
+  <!-- 모두보기 패널 -->
+  <div id="m-allview-panel" style="display:none;position:absolute;bottom:60px;left:0;right:0;z-index:9;background:var(--surface);border-top:1px solid var(--border);padding:10px 0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 14px 8px;">
+      <span id="m-allview-title" style="font-size:13px;font-weight:700;color:#e8eaf0"></span>
+      <span id="m-allview-count" style="font-size:11px;color:#7b82a0"></span>
+    </div>
+    <div id="m-allview-track" style="display:flex;overflow-x:auto;gap:10px;padding:0 14px 4px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;"></div>
+  </div>
+
   <!-- 탭바 -->
   <div id="mobile-tabbar">
     <button class="m-tab active" id="m-tab-map" onclick="mSwitchTab('map')">
@@ -2200,6 +2209,10 @@ kakao.maps.event.addListener(map, 'idle', filterListByBounds);
     <button class="m-tab" id="m-tab-route" onclick="mSwitchTab('route')">
       <i class="ti ti-route" aria-hidden="true"></i>
       <span id="m-route-count">경로</span>
+    </button>
+    <button class="m-tab" id="m-tab-allview" onclick="mToggleAllView()" style="display:none">
+      <i class="ti ti-layout-list" aria-hidden="true"></i>
+      <span>목록</span>
     </button>
   </div>
 
@@ -2296,6 +2309,8 @@ var mMap2 = null;
 var mCurTab = 'map';
 var mCurCat2 = null;
 var mCurCatBtn2 = null;
+var mCatPlaces = []; // 카테고리 검색 결과 place 데이터 저장
+var mProspectData = []; // 신규영업처 시트 데이터 전역 저장
 var mCurCatName2 = '';
 var mPlanData = [];
 var mPlanFilter_val = 'all';
@@ -2394,7 +2409,8 @@ function mMakeEmojiMarker2(lat, lng, emoji) {
   var url = URL.createObjectURL(blob);
   return new kakao.maps.Marker({
     position: new kakao.maps.LatLng(lat, lng), map: mMap2,
-    image: new kakao.maps.MarkerImage(url, new kakao.maps.Size(34,34), {offset:new kakao.maps.Point(17,17)})
+    image: new kakao.maps.MarkerImage(url, new kakao.maps.Size(34,34), {offset:new kakao.maps.Point(17,17)}),
+    zIndex: 1
   });
 }
 
@@ -2420,7 +2436,7 @@ function mShowIW2(marker, item, type, idx) {
     +'<button onclick="mAddToRoute2(\''+type+'\','+idx+')" style="width:100%;padding:12px;background:'+(isSel?'#3b6ef8':'#5c6ef8')+';border:none;border-radius:8px;color:white;font-size:14px;font-weight:600;cursor:pointer">'
     +(isSel?'✅ 경로에 추가됨':'📍 경로 추가')
     +'</button></div>';
-  mCurIW2 = new kakao.maps.InfoWindow({content:c, removable:true});
+  mCurIW2 = new kakao.maps.InfoWindow({content:c, removable:true, zIndex:10});
   mCurIW2.open(mMap2, marker);
 }
 
@@ -2536,6 +2552,8 @@ function mSearchCat2(btn, catName, keywords) {
 function mDoSearch2(keywords) {
   mMobMarkers.search.forEach(function(m){m.setMap(null);});
   mMobMarkers.search = [];
+  mCatPlaces = [];
+  mHideAllView();
   var center = mMap2.getCenter();
   var minLat=34.3, maxLat=35.95, minLng=126.1, maxLng=127.9;
   var opts = { location:center, radius:5000, size:15 };
@@ -2560,22 +2578,203 @@ function mDoSearch2(keywords) {
             var addr2 = pl.road_address_name||pl.address_name;
             var hours2 = pl.opening_hours||'';
             var phone2 = pl.phone||'';
-            var content = buildProspectIW_mobile(pl.place_name, addr2, mCurCatName2, plLat, plLng, false, false, '', hours2, phone2);
-            mCurIW2 = new kakao.maps.InfoWindow({content:content, removable:true});
+            // 신규영업처 시트와 매칭해서 등록/방문 여부 확인
+            var matched2 = mProspectData.find(function(r) {
+              return String(r['업체명']).trim() === String(pl.place_name).trim();
+            });
+            var isReg2   = !!matched2;
+            var isVis2   = matched2 ? (matched2['방문여부']===true||matched2['방문여부']==='TRUE') : false;
+            var memo2    = matched2 ? (matched2['메모']||'') : '';
+            var phone2f  = (matched2 && matched2['전화번호']) ? matched2['전화번호'] : phone2;
+            var hours2f  = (matched2 && matched2['영업시간']) ? matched2['영업시간'] : hours2;
+            var content = buildProspectIW_mobile(pl.place_name, addr2, mCurCatName2, plLat, plLng, isReg2, isVis2, memo2, hours2f, phone2f, pl.place_url||'');
+            mCurIW2 = new kakao.maps.InfoWindow({content:content, removable:true, zIndex:10});
             mCurIW2.open(mMap2, m);
           });
         })(place, lat, lng);
         mMobMarkers.search.push(m);
+        mCatPlaces.push({name:place.place_name, addr:place.road_address_name||place.address_name, phone:place.phone||'', cat:mCurCatName2, lat:lat, lng:lng, placeUrl:place.place_url||''});
+        // 새 장소 추가될 때마다 탭버튼 표시
+        document.getElementById('m-tab-allview').style.display='';
       });
     }, opts);
   });
+}
+
+
+// =============================================
+// 모두보기 패널
+// =============================================
+var mAllViewOpen = false;
+
+function mToggleAllView() {
+  if (mAllViewOpen) {
+    mHideAllView();
+  } else {
+    mShowAllView();
+  }
+}
+
+// 별표 오버레이 (현재 포커스된 마커 표시)
+var mStarOverlay = null;
+
+function mSetStarOverlay(lat, lng) {
+  if (mStarOverlay) { mStarOverlay.setMap(null); mStarOverlay = null; }
+  var content = '<div style="font-size:22px;line-height:1;filter:drop-shadow(0 0 4px gold)">⭐</div>';
+  mStarOverlay = new kakao.maps.CustomOverlay({
+    position: new kakao.maps.LatLng(lat, lng),
+    content: content,
+    yAnchor: 2.2,
+    zIndex: 15
+  });
+  mStarOverlay.setMap(mMap2);
+}
+
+function mClearStarOverlay() {
+  if (mStarOverlay) { mStarOverlay.setMap(null); mStarOverlay = null; }
+}
+
+// 카드 인덱스 추적
+var mAllViewPlaces = [];
+var mAllViewIdx = 0;
+
+function mShowAllView() {
+  if (!mCatPlaces.length) return;
+  mAllViewOpen = true;
+  document.getElementById('m-tab-allview').classList.add('active');
+
+  // 현재 지도 bounds 안에 있는 것만 필터
+  var bounds = mMap2.getBounds();
+  var visible = mCatPlaces.filter(function(p) {
+    return bounds.contain(new kakao.maps.LatLng(p.lat, p.lng));
+  });
+  if (!visible.length) visible = mCatPlaces;
+  mAllViewPlaces = visible;
+  mAllViewIdx = 0;
+
+  document.getElementById('m-allview-title').textContent = (mCurCatName2||'검색결과') + ' 목록';
+  document.getElementById('m-allview-count').textContent = visible.length + '개';
+
+  var track = document.getElementById('m-allview-track');
+  track.innerHTML = '';
+
+  visible.forEach(function(p, i) {
+    // 신규영업처 시트와 매칭
+    var matched = mProspectData.find(function(r) {
+      return String(r['업체명']).trim() === String(p.name).trim();
+    });
+    var isReg  = !!matched;
+    var isVis  = matched ? (matched['방문여부']===true||matched['방문여부']==='TRUE') : false;
+    var phone  = (matched && matched['전화번호']) ? matched['전화번호'] : (p.phone||'');
+    var hours  = (matched && matched['영업시간']) ? matched['영업시간'] : '';
+
+    var card = document.createElement('div');
+    card.className = 'mav-card';
+    card.dataset.idx = i;
+    card.dataset.lat = p.lat;
+    card.dataset.lng = p.lng;
+
+    // 방문완료면 카드 테두리 초록색
+    var borderColor = isVis ? '#27ae60' : '#2e3247';
+    card.style.cssText = 'flex:0 0 calc(100vw - 28px);scroll-snap-align:start;background:#1a1d27;border:2px solid ' + borderColor + ';border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;';
+
+    var tMapUrl = 'tmap://route?goalname=' + encodeURIComponent(p.name) + '&goaly=' + p.lat + '&goalx=' + p.lng;
+    var tMapWeb = 'https://tmap.life/' + p.lat + ',' + p.lng;
+    var nameQ = p.name.replace(/"/g,'&quot;');
+    var addrQ = p.addr.replace(/"/g,'&quot;');
+    var catQ  = (p.cat||'').replace(/"/g,'&quot;');
+
+    card.innerHTML = ''
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+      +   '<div style="flex:1;min-width:0">'
+      +     '<div style="font-size:14px;font-weight:700;color:#e8eaf0;line-height:1.3">' + (p.placeUrl ? '<a href="' + p.placeUrl + '" target="_blank" style="color:#e8eaf0;text-decoration:underline dotted;text-underline-offset:3px">' + p.name + '</a>' : p.name) + '</div>'
+      +     '<div style="font-size:11px;color:#7b82a0;margin-top:3px;line-height:1.4">' + p.addr + '</div>'
+      +   '</div>'
+      +   '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-left:8px;flex-shrink:0">'
+      +     '<span style="font-size:10px;background:rgba(232,68,68,.15);color:#e84444;padding:2px 7px;border-radius:4px">' + (p.cat||'') + '</span>'
+      +     (isVis ? '<span style="font-size:11px;color:#27ae60;font-weight:700">✅ 방문완료</span>'
+                   : (isReg ? '<span style="font-size:11px;color:#5c6ef8">📋 등록됨</span>' : ''))
+      +   '</div>'
+      + '</div>'
+      + (hours ? '<div style="font-size:11px;color:#7b82a0">⏰ ' + hours + '</div>' : '')
+      + (phone
+          ? '<div style="display:flex;align-items:center;gap:8px">'
+          +   '<span style="font-size:12px;color:#7b82a0">📞 ' + phone + '</span>'
+          +   '<a href="tel:' + phone + '" style="margin-left:auto;padding:6px 14px;background:#27ae60;border-radius:7px;color:white;font-size:12px;font-weight:700;text-decoration:none">📲 전화</a>'
+          + '</div>'
+          : '')
+      + '<div style="display:flex;gap:6px;margin-top:auto">'
+      + (isReg
+          ? '<button style="flex:1;padding:8px 4px;background:#2e3247;border:none;border-radius:7px;color:#5c6ef8;font-size:11px;cursor:default">✅ 등록됨</button>'
+          : '<button class="mav-reg" data-name="' + nameQ + '" data-addr="' + addrQ + '" data-cat="' + catQ + '" data-lat="' + p.lat + '" data-lng="' + p.lng + '" style="flex:1;padding:8px 4px;background:#5c6ef8;border:none;border-radius:7px;color:white;font-size:11px;font-weight:600;cursor:pointer">📋 등록</button>')
+      +   '<button class="mav-visit" data-name="' + nameQ + '" data-addr="' + addrQ + '" data-cat="' + catQ + '" data-lat="' + p.lat + '" data-lng="' + p.lng + '" data-visited="' + isVis + '" style="flex:1;padding:8px 4px;background:' + (isVis?'#27ae60':'#2e3247') + ';border:1px solid ' + (isVis?'#27ae60':'#3a4060') + ';border-radius:7px;color:' + (isVis?'white':'#7b82a0') + ';font-size:11px;cursor:pointer">' + (isVis?'✓ 방문됨':'✅ 방문체크') + '</button>'
+      +   '<a class="mav-tmap" data-tmap="' + tMapUrl + '" data-twebmap="' + tMapWeb + '" style="flex:1;padding:8px 4px;background:#1b6cf2;border:none;border-radius:7px;color:white;font-size:11px;font-weight:600;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center">🗺️ T맵</a>'
+      + '</div>';
+
+    track.appendChild(card);
+  });
+
+  // 이벤트 위임
+  track.onclick = function(e) {
+    var reg = e.target.closest('.mav-reg');
+    if (reg) { mUpsertProspect('register', reg.dataset.name, reg.dataset.addr, reg.dataset.cat, parseFloat(reg.dataset.lat), parseFloat(reg.dataset.lng), false, ''); return; }
+    var vis = e.target.closest('.mav-visit');
+    if (vis) {
+      var wasVis = vis.dataset.visited === 'true';
+      mUpsertProspect('visit', vis.dataset.name, vis.dataset.addr, vis.dataset.cat, parseFloat(vis.dataset.lat), parseFloat(vis.dataset.lng), !wasVis, '');
+      return;
+    }
+    var tmap = e.target.closest('.mav-tmap');
+    if (tmap) {
+      e.preventDefault();
+      var url = /Android|iPhone/i.test(navigator.userAgent) ? tmap.dataset.tmap : tmap.dataset.twebmap;
+      window.open(url, '_blank');
+      return;
+    }
+  };
+
+  // 스크롤로 카드 넘길 때 지도 + 별표 연동
+  track.onscroll = function() {
+    var cardW = track.firstChild ? track.firstChild.offsetWidth + 10 : 1;
+    var idx = Math.round(track.scrollLeft / cardW);
+    if (idx !== mAllViewIdx && mAllViewPlaces[idx]) {
+      mAllViewIdx = idx;
+      var p = mAllViewPlaces[idx];
+      mMap2.panTo(new kakao.maps.LatLng(p.lat, p.lng));
+      mSetStarOverlay(p.lat, p.lng);
+    }
+  };
+
+  document.getElementById('m-allview-panel').style.display = 'block';
+
+  // 첫 카드 별표 + 지도 이동
+  if (visible.length) {
+    mMap2.panTo(new kakao.maps.LatLng(visible[0].lat, visible[0].lng));
+    mSetStarOverlay(visible[0].lat, visible[0].lng);
+  }
+}
+
+function mHideAllView() {
+  mAllViewOpen = false;
+  mClearStarOverlay();
+  document.getElementById('m-allview-panel').style.display = 'none';
+  var btn = document.getElementById('m-tab-allview');
+  if (btn) btn.classList.remove('active');
+}
+
+function mFocusPlace(lat, lng) {
+  mMap2.panTo(new kakao.maps.LatLng(lat, lng));
+  mHideAllView();
 }
 
 function mClearCat2() {
   mCurCat2=null; mCurCatBtn2=null;
   mMobMarkers.search.forEach(function(m){m.setMap(null);});
   mMobMarkers.search=[];
+  mCatPlaces=[];
   document.querySelectorAll('.m-cat-btn').forEach(function(b){b.classList.remove('active');});
+  mHideAllView();
+  document.getElementById('m-tab-allview').style.display='none';
 }
 
 function mAddCatToRoute2() {
@@ -2604,6 +2803,7 @@ async function mLoadProspectMarkers2() {
     var res = await fetch(WEBAPP_URL+'?action=getProspects');
     var json = await res.json();
     if (!json.success||!json.data.length) return;
+    mProspectData = json.data; // 전역 저장 — 카테고리 검색 마커와 매칭에 사용
     json.data.forEach(function(item) {
       var lat=parseFloat(item['위도']), lng=parseFloat(item['경도']);
       if (!lat||!lng) return;
@@ -2622,8 +2822,8 @@ async function mLoadProspectMarkers2() {
           var mem3 = it['메모']||'';
           var hours3 = it['영업시간']||'';
           var phone3 = it['전화번호']||'';
-          var content3 = buildProspectIW_mobile(it['업체명']||'', it['주소']||'', cat3, iLat2, iLng2, true, vis3, mem3, hours3, phone3);
-          mCurIW2=new kakao.maps.InfoWindow({content:content3,removable:true});
+          var content3 = buildProspectIW_mobile(it['업체명']||'', it['주소']||'', cat3, iLat2, iLng2, true, vis3, mem3, hours3, phone3, '');
+          mCurIW2=new kakao.maps.InfoWindow({content:content3,removable:true,zIndex:10});
           mCurIW2.open(mMap2,m);
         });
       })(item, lat, lng);
