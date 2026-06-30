@@ -2003,6 +2003,10 @@ function buildProspectIW(name, addr, cat, lat, lng, isRegistered, visitedIn, mem
         🚚 T맵
       </a>
     </div>
+    <div style="margin-top:6px">
+      <button onclick="addProspectToRoute('${nameE}','${addrE}',${lat},${lng})"
+        style="width:100%;padding:6px;background:#2e3247;border:1px solid #3a4060;border-radius:5px;color:#5c6ef8;font-size:11px;cursor:pointer">📍 경로(영업계획)에 추가</button>
+    </div>
     <div style="display:flex;gap:5px;margin-top:6px">
       <input id="iw-memo-input" placeholder="비고 입력..." value="${memoIn||''}"
         style="flex:1;padding:5px 8px;background:#1a1d27;border:1px solid #2e3247;border-radius:5px;color:#e8eaf0;font-size:11px;outline:none">
@@ -2054,6 +2058,31 @@ function buildProspectIW_mobile(name, addr, cat, lat, lng, isRegistered, visited
 }
 
 // upsertProspect 액션 실행 (PC)
+// 신규영업처를 경로(영업계획)에 추가/제거
+function addProspectToRoute(name, addr, lat, lng) {
+  const pid = 'prospect_' + name + '_' + addr;
+  const already = searchSelected.findIndex(s => s._pid === pid);
+  if (already >= 0) {
+    searchSelected.splice(already, 1);
+    alert('경로에서 제거했습니다.');
+  } else {
+    searchSelected.push({
+      _pid: pid,
+      거래처명: name,
+      주소: addr,
+      위도: lat,
+      경도: lng,
+      _type: 'prospect'
+    });
+    alert('경로(영업계획)에 추가했습니다.');
+  }
+  mUpdateRouteCount2 && mUpdateRouteCount2();
+  var selcntEl = document.getElementById('selcnt');
+  if (selcntEl) selcntEl.textContent = selected.length + searchSelected.length;
+  if (typeof renderRoute === 'function') renderRoute();
+  if (typeof mRenderRoute2 === 'function') mRenderRoute2();
+}
+
 async function upsertProspectAction(action, name, addr, cat, lat, lng, visited, memo) {
   const user = window.AZ_USER || localStorage.getItem('az_user') || 'AZ';
   try {
