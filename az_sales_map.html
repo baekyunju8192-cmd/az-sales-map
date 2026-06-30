@@ -2610,6 +2610,12 @@ function mSwitchTab(tab) {
       }
     }
   });
+
+  // 불러온 영업계획 칩 카드는 데이터를 유지한 채, 다른 패널에 가리지 않도록 표시만 전환
+  var planCardPanel = document.getElementById('m-plan-card-panel');
+  if (planCardPanel && typeof mPlanValidItems !== 'undefined' && mPlanValidItems.length) {
+    planCardPanel.style.display = (tab === 'map') ? 'block' : 'none';
+  }
 }
 
 // =============================================
