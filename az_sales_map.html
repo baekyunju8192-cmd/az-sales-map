@@ -2141,7 +2141,7 @@ function buildProspectIW(name, addr, cat, lat, lng, isRegistered, visitedIn, mem
       </a>
     </div>
     <div style="margin-top:6px">
-      <button onclick="addProspectToRoute('${nameE}','${addrE}',${lat},${lng})"
+      <button onclick="addProspectToRoute('${nameE}','${addrE}',${lat},${lng},'${catE}')"
         style="width:100%;padding:6px;background:#2e3247;border:1px solid #3a4060;border-radius:5px;color:#5c6ef8;font-size:11px;cursor:pointer">📍 경로(영업계획)에 추가</button>
     </div>
     <div style="display:flex;gap:5px;margin-top:6px">
@@ -2196,7 +2196,7 @@ function buildProspectIW_mobile(name, addr, cat, lat, lng, isRegistered, visited
 
 // upsertProspect 액션 실행 (PC)
 // 신규영업처를 경로(영업계획)에 추가/제거
-function addProspectToRoute(name, addr, lat, lng) {
+function addProspectToRoute(name, addr, lat, lng, cat) {
   const pid = 'prospect_' + name + '_' + addr;
   const already = searchSelected.findIndex(s => s._pid === pid);
   if (already >= 0) {
@@ -2209,6 +2209,7 @@ function addProspectToRoute(name, addr, lat, lng) {
       주소: addr,
       위도: lat,
       경도: lng,
+      카테고리: cat || '',
       _type: 'prospect'
     });
     alert('경로(영업계획)에 추가했습니다.');
