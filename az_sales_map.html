@@ -973,6 +973,7 @@ let searchSelected = [];
 
 let polylines = [];
 let top5 = {};
+let originMap = new Map(); // 원산지검토 시트: key=업체명+위도4+경도4 → 수입육사용(O/X/빈칸)
 
 // 한글 입력(IME) 조합 완료 시 input 이벤트가 누락되는 모바일 브라우저 대응:
 // input + compositionend + 짧은 안전망(타이핑 멈춘 후 재확인)을 모두 묶어서
@@ -1098,15 +1099,36 @@ async function loadAll() {
   }
   showLoadFailBanner();
 
-  // 거래처별주요품목 로드
+  // 거래처별주요품목 + 원산지검토 병렬 로드
   try {
-    setLoadTxt('주요품목 로딩 중...');
-    const url = `https://docs.google.com/spreadsheets/d/${SS_ID}/export?format=csv&gid=299724501`;
-    const txt = await fetch(url).then(r => r.text());
-    parseCSV(txt).forEach(r => {
-      top5[normName(r['거래처명'])] = r;
-    });
-  } catch(e) {}
+    setLoadTxt('주요품목 / 원산지 데이터 로딩 중...');
+    const [top5Txt, originTxt] = await Promise.all([
+      fetch(`https://docs.google.com/spreadsheets/d/${SS_ID}/export?format=csv&gid=299724501`).then(r => r.text()).catch(() => ''),
+      fetch(`https://docs.google.com/spreadsheets/d/${SS_ID}/export?format=csv&gid=399280512`).then(r => r.text()).catch(() => '')
+    ]);
+
+    // 주요품목 파싱
+    if (top5Txt) {
+      parseCSV(top5Txt).forEach(r => {
+        top5[normName(r['거래처명'])] = r;
+      });
+    }
+
+    // 원산지검토 파싱 → Map
+    if (originTxt) {
+      parseCSV(originTxt).forEach(r => {
+        const name = String(r['업체명'] || '').trim();
+        const lat  = parseFloat(r['위도']);
+        const lng  = parseFloat(r['경도']);
+        if (!name || isNaN(lat) || isNaN(lng)) return;
+        const key = name + ':' + lat.toFixed(4) + ':' + lng.toFixed(4);
+        originMap.set(key, String(r['수입육사용'] || '').trim());
+      });
+    }
+  } catch(e) {
+    // fetch 실패 시 originMap 빈 Map 유지 → 모든 마커 표시 (안전 fallback)
+    console.log('주요품목/원산지 로드 실패:', e);
+  }
 
   // 마커 표시 (좌표 있는 것만 즉시, 없는 것 제외)
   setLoadTxt('마커 표시 중...');
@@ -1220,6 +1242,9 @@ async function loadProspectMarkers() {
       const lat = parseFloat(item['위도']);
       const lng = parseFloat(item['경도']);
       if (!lat || !lng) return;
+
+      // 원산지검토 — 수입육사용=X면 마커 생성 안 함
+      if (isOriginBlocked(item['업체명'], lat, lng)) return;
 
       // 등록된 신규영업처 - 주황 테두리 빨간 마커
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><circle cx="8" cy="8" r="6" fill="#e84444" stroke="#f59e0b" stroke-width="2"/></svg>`;
@@ -1574,6 +1599,9 @@ function doSearch(keywords) {
         });
         if (dup) return;
 
+        // 원산지검토 — 수입육사용=X면 마커 생성 안 함
+        if (isOriginBlocked(place.place_name, lat, lng)) return;
+
         const emoji = CAT_EMOJI[curCatName] || CAT_EMOJI['default'];
         const m = makeEmojiMarker(lat, lng, emoji, visible.search);
         // place 정보 저장
@@ -1608,6 +1636,13 @@ function clearCat() {
 }
 
 function normName(n) { return String(n||'').replace(/\s+/g,'').trim(); }
+
+// 원산지검토 Map lookup — 수입육사용=X면 true(숨김), 나머지는 false(표시)
+function isOriginBlocked(name, lat, lng) {
+  if (!originMap.size) return false; // 데이터 없으면 모두 표시
+  const key = String(name||'').trim() + ':' + Number(lat).toFixed(4) + ':' + Number(lng).toFixed(4);
+  return originMap.get(key) === 'X';
+}
 
 // HTML 마크업 인젝션 방지용 escape — innerHTML/템플릿 리터럴로 출력되는
 // 거래처명/주소/카테고리/메모 등 외부·사용자 입력 데이터에 적용
@@ -2887,6 +2922,9 @@ function mDoSearch2(keywords) {
           return Math.abs(p.getLat()-lat)<0.0001&&Math.abs(p.getLng()-lng)<0.0001;
         });
         if (dup) return;
+
+        // 원산지검토 — 수입육사용=X면 마커 생성 안 함
+        if (isOriginBlocked(place.place_name, lat, lng)) return;
         var emoji = CAT_EMOJI[mCurCatName2]||'📍';
         var m = mMakeEmojiMarker2(lat, lng, emoji);
         (function(pl, plLat, plLng){
@@ -3154,6 +3192,9 @@ async function mLoadProspectMarkers2() {
     json.data.forEach(function(item) {
       var lat=parseFloat(item['위도']), lng=parseFloat(item['경도']);
       if (!lat||!lng) return;
+
+      // 원산지검토 — 수입육사용=X면 마커 생성 안 함
+      if (isOriginBlocked(item['업체명'], lat, lng)) return;
       var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><circle cx="8" cy="8" r="6" fill="#e84444" stroke="#f59e0b" stroke-width="2"/></svg>';
       var blob = new Blob([svg],{type:'image/svg+xml'});
       var url = URL.createObjectURL(blob);
