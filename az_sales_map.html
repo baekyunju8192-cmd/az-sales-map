@@ -938,7 +938,15 @@ if (localStorage.getItem('az_auth') === '1') {
 const SS_ID = '1mIXExxFRuZmcy7VKEe_w63Yu1QOqT5r8qondm4k91-c';
 const GID = { active:'0', new:'2043143991', dormant:'1615833992' };
 const COMPANY = { lat:35.2162723, lng:126.8245735, name:'(주)에이젯시스템' };
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyodBLIb-SOuyAdcNGFf0NVHWIt_01d7JHTeAAULlhsKyU0M-cUzQlvtgRd6nxPun9_/exec'; // Apps Script 배포 후 URL 입력
+// [검수 메모 — no-cors POST] 이 파일의 저장/방문체크 fetch 여러 곳이 mode:'no-cors'
+// 를 쓴다. no-cors 는 서버 응답(success/실패 메시지)을 읽지 못하므로, 서버가 실패해도
+// 클라이언트는 성공한 것처럼 동작한다. no-cors 를 제거하면 응답을 읽을 수 있으나,
+// Apps Script /exec 웹앱은 CORS 응답 헤더를 자동으로 붙이지 않아 배포 설정에 따라
+// 오히려 요청이 차단될 수 있다(현재 되던 저장이 안 될 위험). 따라서 이 값은 실제 배포
+// 환경에서 테스트하며 신중히 바꿀 것. 참고로 manager.html 로그인 POST 는 Content-Type
+// 미지정(text/plain) 덕에 preflight 없이 응답을 읽고 있으므로, 동일 방식이 여기서도
+// 동작하는지 배포 후 확인한 뒤 no-cors 제거 여부를 결정하면 된다.
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbznhjfaRRXQ7rxT63qBiFXnLbEF35yZXu6Cev3M52w05iApZ3dtMmDOA5PfRA2vILjpcQ/exec'; // Apps Script 배포 후 URL 입력
 const COLORS = { active:'#3b82f6', new:'#27ae60', dormant:'#888888', search:'#e84444' };
 const CAT_EMOJI = {
   '육가공': '🏭', '식당': '🍽️', '수산물': '🐟',
@@ -1650,6 +1658,20 @@ function escHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+// [보안 추가] onclick="fn('...')" 인라인 핸들러 안의 '작은따옴표 JS 문자열'에 값을 넣을 때
+// 쓰는 안전 인코더. 기존 코드가 작은따옴표(')만 이스케이프해 큰따옴표(")/역슬래시(\\)/개행이
+// 들어오면 속성 조기 종료(→임의 속성 주입, stored XSS)나 onclick 파손이 났다.
+// JS 문자열로 위험한 문자를 먼저 이스케이프하고, 결과를 다시 HTML 속성값으로 인코딩한다.
+// 사용법: onclick="toggleVisit(\'${jsAttr(name)}\', ...)" (반드시 작은따옴표 문자열 안)
+function jsAttr(s) {
+  const js = String(s == null ? '' : s)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\r?\n/g, '\\n');
+  return js.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+           .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 // 라벨 기능 삭제됨
 
 // ── GPS 현재 위치 ──
@@ -1961,7 +1983,7 @@ function showPlanPanel(items, user) {
           display:flex;align-items:center;gap:8px;padding:8px 14px;
           border-bottom:1px solid var(--border);cursor:pointer;
           opacity:${visited?'0.5':'1'};transition:opacity .2s">
-          <div onclick="toggleVisit('${item['거래처명'].replace(/'/g,"\\'")}','${user}',${i})" style="
+          <div onclick="toggleVisit('${jsAttr(item['거래처명'])}','${user}',${i})" style="
             width:18px;height:18px;border-radius:50%;flex-shrink:0;cursor:pointer;
             border:2px solid ${visited?'#27ae60':'var(--border)'};
             background:${visited?'#27ae60':'transparent'};
@@ -1969,7 +1991,7 @@ function showPlanPanel(items, user) {
             font-size:10px;color:white">
             ${visited?'✓':''}
           </div>
-          <div onclick="focusPlanItem('${item['거래처명'].replace(/'/g,"\\'")}')" style="flex:1;min-width:0;cursor:pointer">
+          <div onclick="focusPlanItem('${jsAttr(item['거래처명'])}')" style="flex:1;min-width:0;cursor:pointer">
             <div style="font-size:12px;font-weight:${visited?'400':'600'};color:var(--text);
               text-decoration:${visited?'line-through':'none'};
               white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
@@ -2103,9 +2125,9 @@ async function submitAddForm() {
 
 // ── 신규영업처 통합 팝업 (카테고리 검색 + 등록된 신규영업처 공통) ──
 function buildProspectIW(name, addr, cat, lat, lng, isRegistered, visitedIn, memoIn, openHours, placeUrl) {
-  const nameE = name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-  const addrE = addr.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-  const catE  = cat.replace(/'/g,"\\'");
+  const nameE = jsAttr(name);
+  const addrE = jsAttr(addr);
+  const catE  = jsAttr(cat);
   const hoursHtml = openHours
     ? `<div style="font-size:11px;color:#7b82a0;margin-top:3px">⏰ ${escHtml(openHours)}</div>` : '';
   const visitedHtml = isRegistered
@@ -2155,9 +2177,9 @@ function buildProspectIW(name, addr, cat, lat, lng, isRegistered, visitedIn, mem
 
 // 모바일용 신규영업처 팝업
 function buildProspectIW_mobile(name, addr, cat, lat, lng, isRegistered, visitedIn, memoIn, openHours, phone, placeUrl) {
-  const nameE = name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-  const addrE = addr.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-  const catE  = cat.replace(/'/g,"\\'");
+  const nameE = jsAttr(name);
+  const addrE = jsAttr(addr);
+  const catE  = jsAttr(cat);
   const hoursHtml = openHours ? `<div style="font-size:12px;color:#7b82a0;margin-top:4px">⏰ ${escHtml(openHours)}</div>` : '';
   const phoneHtml = phone ? `<div style="font-size:12px;color:#7b82a0;margin-top:6px;display:flex;align-items:center;gap:8px">📞 ${escHtml(phone)}<a href="tel:${encodeURIComponent(phone)}" style="margin-left:auto;padding:7px 16px;background:#27ae60;border-radius:8px;color:white;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">📲 전화</a></div>` : '';
   const tMapUrl = `tmap://route?goalname=${encodeURIComponent(name)}&goaly=${lat}&goalx=${lng}`;
@@ -3309,7 +3331,7 @@ function mRenderPlanList2() {
   // 같은 화면의 카드 슬라이더(mShowPlanCards)는 '기존'이면 방문버튼을 숨깁니다. 목록 탭에도 같은 규칙을 적용할지 확인 부탁드립니다.
   el.innerHTML = items.map(function(item,i){
     var done = item['방문완료']===true||item['방문완료']==='TRUE';
-    var nameEsc = item['거래처명'].replace(/'/g,"\\'");
+    var nameEsc = jsAttr(item['거래처명']);
     return '<div class="m-plan-item" onclick="mToggleVisit2(\''+nameEsc+'\','+i+')">'
       +'<div class="m-visit-circle'+(done?' done':'')+'">'+(done?'✓':'')+'</div>'
       +'<div class="m-plan-info">'
